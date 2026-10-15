@@ -1,5 +1,6 @@
 #include "Controls.h"
 #include <cmath>
+#include <algorithm>
 
 using namespace nf;
 
@@ -15,12 +16,12 @@ const char* modSrcShort(int s)
 
 juce::Colour modSrcColour(int s)
 {
-    if (s >= 1 && s <= 3) return juce::Colour(0xffffb23c);
-    if (s >= 4 && s <= 7) return cCyan;
-    if (s >= 8 && s <= 10) return juce::Colour(0xffc58cff);
-    if (s >= 11 && s <= 18) return cAccent;
-    if (s == (int) ModSrc::Step1 || s == (int) ModSrc::Step2) return juce::Colour(0xffff5fa2);
-    return juce::Colour(0xff9aa6b4);
+    if (s >= (int) ModSrc::Env1 && s <= (int) ModSrc::Env3) return tok::modEnv;
+    if (s >= (int) ModSrc::Lfo1 && s <= (int) ModSrc::Lfo4) return tok::modLfo;
+    if (s >= (int) ModSrc::Motion1 && s <= (int) ModSrc::Motion3) return tok::modMotion;
+    if (s >= (int) ModSrc::Macro1 && s <= (int) ModSrc::Macro8) return tok::modMacro;
+    if (s == (int) ModSrc::Step1 || s == (int) ModSrc::Step2) return tok::modStep;
+    return tok::modOther;
 }
 
 //==============================================================================================
@@ -41,8 +42,11 @@ Knob::Knob(NeuroforgeProcessor& p, int paramId, juce::String lbl)
     discrete = d.curve == Curve::Disc || d.curve == Curve::Toggle;
     defNorm = realToNorm(d, d.def);
     fmt = [this](float v) { return nfFormat(pid, v); };
-    setTooltip(juce::String(d.name) + "  (drag; ctrl = fine; dbl-click = reset; alt-drag = mod amount; right-click = menu)");
+    setTooltip(juce::String(d.name) + "\nDrag (Ctrl = fine) / wheel / arrow keys. Double-click = reset. "
+               "Right-click = enter value, modulation, macros.");
     setRepaintsOnMouseActivity(false);
+    setWantsKeyboardFocus(true);
+    setMouseCursor(juce::MouseCursor::UpDownResizeCursor);
     att = std::make_unique<juce::ParameterAttachment>(*proc.getParam(pid), [this](float v) { value = v; repaint(); });
     att->sendInitialUpdate();
 }
@@ -72,139 +76,259 @@ static juce::String badgeText(int s)
     }
 }
 
-bool Knob::hasBadgeRow() const { return modulatable && getHeight() >= 56; }
+// ---- geometry --------------------------------------------------------------------------------
+// Stacked knob:  [ circle ] [ badge row ] [ label row ]      (badges never share the label row)
+// Inline knob:   [ circle ][ label  value ........ badges ]  (compact footer controls, e.g. FX Mix / Motion)
+static constexpr float kLabelH = 14.f, kBadgeH = 12.f, kBadgeMinW = 18.f, kBadgeGap = 2.f;
+
+int& hoveredModSource() { static int s = 0; return s; }
+
+bool Knob::hasBadgeRow() const { return !inlineMode && getHeight() >= 44; } // same geometry for every stacked knob
+
+Knob::Size Knob::sizeClass() const
+{
+    if (inlineMode) return Size::Small;
+    const auto c = circleArea();
+    const float d = juce::jmin(c.getWidth(), c.getHeight());
+    return d < 36.f ? Size::Small : (d < 54.f ? Size::Medium : Size::Large);
+}
+
+juce::Rectangle<float> Knob::circleArea() const
+{
+    auto b = getLocalBounds().toFloat();
+    if (inlineMode) return b.withWidth(b.getHeight());
+    return b.withTrimmedBottom(kLabelH + (hasBadgeRow() ? kBadgeH : 0.f));
+}
 
 juce::Rectangle<float> Knob::badgeArea() const
 {
-    const float labelH = 12.f, badgeH = 11.f;
     auto b = getLocalBounds().toFloat();
-    if (hasBadgeRow()) return { b.getX(), b.getBottom() - labelH - badgeH, b.getWidth(), badgeH };
-    return { b.getX(), b.getBottom() - labelH, b.getWidth(), labelH }; // small knobs: badges share the label row
+    if (inlineMode) { // right end of the text area, vertically centred
+        auto t = b.withTrimmedLeft(b.getHeight() + 4.f);
+        const float bw = juce::jmin(2.f * kBadgeMinW + kBadgeGap, t.getWidth() * 0.4f);
+        return { t.getRight() - bw, t.getCentreY() - kBadgeH * 0.5f, bw, kBadgeH };
+    }
+    return { b.getX() + 1.f, b.getBottom() - kLabelH - kBadgeH, b.getWidth() - 2.f, kBadgeH };
 }
+
+int Knob::badgeSlots() const // how many badge positions fit; the last one becomes "+n" on overflow
+{
+    const float w = badgeArea().getWidth();
+    return juce::jmax(1, (int) ((w + kBadgeGap) / (kBadgeMinW + kBadgeGap)));
+}
+
+int Knob::shownBadges() const
+{
+    const int n = (int) routes.size(), slots = badgeSlots();
+    return n <= slots ? n : slots - 1;
+}
+
+bool Knob::hasOverflow() const { return (int) routes.size() > badgeSlots(); }
 
 juce::Rectangle<float> Knob::badgeRect(int i) const
 {
-    const int n = (int) routes.size();
+    const int n = shownBadges() + (hasOverflow() ? 1 : 0);
     auto area = badgeArea();
-    const float gap = 2.f;
-    const float w = juce::jmin(24.f, (area.getWidth() - gap * (float) (n - 1)) / (float) juce::jmax(1, n));
-    const float total = w * (float) n + gap * (float) (n - 1);
-    return { area.getCentreX() - total * 0.5f + (float) i * (w + gap), area.getY() + 0.5f, w, area.getHeight() - 1.f };
+    const float w = juce::jmin(26.f, (area.getWidth() - kBadgeGap * (float) (n - 1)) / (float) juce::jmax(1, n));
+    const float total = w * (float) n + kBadgeGap * (float) (n - 1);
+    const float x0 = inlineMode ? area.getRight() - total : area.getCentreX() - total * 0.5f;
+    return { x0 + (float) i * (w + kBadgeGap), area.getY(), w, area.getHeight() };
 }
 
 int Knob::badgeAt(juce::Point<float> pt) const
 {
     if (routes.empty()) return -1;
-    if (!hasBadgeRow() && overCircle) return -1; // small knob, label showing
-    for (int i = 0; i < (int) routes.size(); ++i)
-        if (badgeRect(i).expanded(1.f, 2.f).contains(pt)) return i;
+    const int n = shownBadges() + (hasOverflow() ? 1 : 0);
+    for (int i = 0; i < n; ++i)
+        if (badgeRect(i).expanded(1.f, 2.f).contains(pt)) return i;   // i == shownBadges() is the "+n" badge
     return -1;
 }
 
+// ---- painting --------------------------------------------------------------------------------
 void Knob::paint(juce::Graphics& g)
 {
-    auto b = getLocalBounds().toFloat();
-    const float labelH = 12.f;
-    auto area = b.withTrimmedBottom(labelH + (hasBadgeRow() ? 11.f : 0.f));
-    const float R = juce::jmin(area.getWidth(), area.getHeight()) * 0.5f - 1.5f;
+    using namespace tok;
+    const bool enabled = isEnabled();
+    const auto sz = sizeClass();
+    auto area = circleArea();
+    const float R = juce::jmin(area.getWidth(), area.getHeight()) * 0.5f - 1.f;
     const auto c = area.getCentre();
-    const float rk = R - 4.f;
+    // shared proportions: everything scales with the radius
+    const int maxRings = sz == Size::Large ? 3 : 2;
+    const int nRings = juce::jmin(maxRings, (int) routes.size());
+    const float arcW = juce::jlimit(2.2f, 3.6f, R * 0.13f);
+    const float ringW = sz == Size::Small ? 1.3f : 1.6f, ringStep = ringW + 1.3f, laneGap = 2.2f;
+    const float rk = R - arcW * 0.5f - (nRings > 0 ? laneGap + (float) nRings * ringStep : 0.f) - 0.5f; // value-arc radius
+    const float bodyR = rk - arcW * 0.5f - juce::jmax(1.5f, R * 0.08f);
     const float a0 = juce::MathConstants<float>::pi * 1.25f, a1 = juce::MathConstants<float>::pi * 2.75f;
     auto ang = [&](float v) { return a0 + (a1 - a0) * juce::jlimit(0.f, 1.f, v); };
+    auto arc = [&](float r, float from, float to) { juce::Path p; p.addCentredArc(c.x, c.y, r, r, 0.f, from, to, true); return p; };
+    auto polar = [&](float a, float r) { const float aa = a - juce::MathConstants<float>::halfPi; return juce::Point<float>(c.x + std::cos(aa) * r, c.y + std::sin(aa) * r); };
+    const juce::PathStrokeType stroke(arcW, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
 
+    // drag-to-modulate feedback: every valid target shows a dashed outline in the dragged source's colour
+    if (dragHintSrc > 0 && !dropHighlight) {
+        juce::Path o; o.addEllipse(c.x - R, c.y - R, 2.f * R, 2.f * R);
+        juce::Path d; const float dash[] = { 3.f, 2.5f };
+        juce::PathStrokeType(1.f).createDashedStroke(d, o, dash, 2);
+        g.setColour(modSrcColour(dragHintSrc).withAlpha(0.7f));
+        g.fillPath(d);
+    }
     if (dropHighlight) {
-        g.setColour(cCyan.withAlpha(0.25f));
-        g.fillEllipse(c.x - R - 1.f, c.y - R - 1.f, 2.f * R + 2.f, 2.f * R + 2.f);
-        g.setColour(cCyan);
-        g.drawEllipse(c.x - R - 1.f, c.y - R - 1.f, 2.f * R + 2.f, 2.f * R + 2.f, 1.5f);
+        const auto col = modSrcColour(dragHintSrc > 0 ? dragHintSrc : 1);
+        g.setColour(col.withAlpha(0.2f));
+        g.fillEllipse(c.x - R, c.y - R, 2.f * R, 2.f * R);
+        g.setColour(col);
+        g.drawEllipse(c.x - R, c.y - R, 2.f * R, 2.f * R, 1.4f);
+    }
+    if (flash > 0.f) { // a new route was just assigned
+        g.setColour(textPrimary.withAlpha(0.6f * flash));
+        g.drawEllipse(c.x - R, c.y - R, 2.f * R, 2.f * R, 1.5f);
     }
 
-    const juce::PathStrokeType stroke(rk > 14.f ? 3.2f : 2.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
-    juce::Path track;
-    track.addCentredArc(c.x, c.y, rk, rk, 0.f, a0, a1, true);
-    g.setColour(cTrack);
-    g.strokePath(track, stroke);
-
+    // ---- value lane ----
+    g.setColour(hover && enabled ? track.brighter(0.18f) : track);
+    g.strokePath(arc(rk, a0, a1), stroke);
     float from = bipolar ? ang(0.5f) : a0, to = ang(value);
     if (to < from) std::swap(from, to);
-    if (to - from > 0.02f) {
-        juce::Path va;
-        va.addCentredArc(c.x, c.y, rk, rk, 0.f, from, to, true);
-        g.setColour(cAccent);
-        g.strokePath(va, stroke);
+    if (to - from > 0.015f) {
+        g.setColour(enabled ? accent : accentDim.withAlpha(0.6f));
+        g.strokePath(arc(rk, from, to), stroke);
+    }
+    if (bipolar) { // zero tick
+        const auto p0 = polar(ang(0.5f), rk - arcW), p1 = polar(ang(0.5f), rk + arcW);
+        g.setColour(textSecondary);
+        g.drawLine(p0.x, p0.y, p1.x, p1.y, 1.f);
     }
 
-    // one arc per modulation route, in its source colour, showing the range it can move the knob
-    for (int i = 0; i < (int) routes.size() && i < 3; ++i) {
+    // ---- modulation lane: separated from the value arc by a gap, one thin ring per route ----
+    // solid = positive depth, dashed = negative depth; bipolar sources span both sides of the value.
+    for (int i = 0; i < nRings; ++i) {
         const auto& rt = routes[(size_t) i];
-        const float lo = srcIsBipolar(rt.src) ? value - std::abs(rt.amount) : juce::jmin(value, value + rt.amount);
-        const float hi = srcIsBipolar(rt.src) ? value + std::abs(rt.amount) : juce::jmax(value, value + rt.amount);
+        const float mr = rk + arcW * 0.5f + laneGap + ringStep * ((float) i + 0.5f);
+        g.setColour(track.withAlpha(0.45f)); // faint lane so a ring reads as "modulation", not as the value
+        g.strokePath(arc(mr, a0, a1), juce::PathStrokeType(ringW * 0.7f));
+        const bool bi = srcIsBipolar(rt.src);
+        const float lo = bi ? value - std::abs(rt.amount) : juce::jmin(value, value + rt.amount);
+        const float hi = bi ? value + std::abs(rt.amount) : juce::jmax(value, value + rt.amount);
         const float m0 = ang(lo), m1 = ang(hi);
-        if (m1 - m0 < 0.01f) continue;
-        juce::Path mp;
-        const float mr = rk + 3.8f + 2.6f * (float) i;
-        mp.addCentredArc(c.x, c.y, mr, mr, 0.f, m0, m1, true);
-        const bool hot = i == hoverBadge || i == badgeDrag;
-        g.setColour(modSrcColour(rt.src).withAlpha(hot ? 1.f : 0.8f));
-        g.strokePath(mp, juce::PathStrokeType(hot ? 2.2f : 1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        const bool hot = i == hoverBadge || i == badgeDrag || rt.src == hoveredModSource();
+        const auto col = modSrcColour(rt.src).withAlpha(enabled ? (hot ? 1.f : 0.9f) : 0.35f);
+        if (m1 - m0 > 0.01f) {
+            auto p = arc(mr, m0, m1);
+            juce::PathStrokeType st(hot ? ringW + 0.7f : ringW, juce::PathStrokeType::curved, juce::PathStrokeType::butt);
+            g.setColour(col);
+            if (rt.amount < 0.f && !bi) {
+                juce::Path dashed;
+                const float dash[] = { 2.5f, 2.f };
+                st.createDashedStroke(dashed, p, dash, 2);
+                g.fillPath(dashed);
+            } else {
+                g.strokePath(p, st);
+            }
+            const float dotR = ringW * 0.85f + 0.5f;
+            auto dot = [&](float a) { const auto pt = polar(a, mr); g.fillEllipse(pt.x - dotR, pt.y - dotR, dotR * 2.f, dotR * 2.f); };
+            if (bi) { dot(m0); dot(m1); } else dot(ang(value + rt.amount));
+        }
+    }
+    if (nRings > 0) { // base-value marker across the modulation lane
+        const float rIn = rk + arcW * 0.5f + laneGap * 0.5f, rOut = rk + arcW * 0.5f + laneGap + ringStep * (float) nRings;
+        const auto p0 = polar(ang(value), rIn), p1 = polar(ang(value), rOut);
+        g.setColour(textPrimary.withAlpha(enabled ? 0.75f : 0.3f));
+        g.drawLine(p0.x, p0.y, p1.x, p1.y, 1.f);
     }
 
-    const float bodyR = rk - 3.5f;
-    g.setColour(cPanel2);
-    g.fillEllipse(c.x - bodyR, c.y - bodyR, bodyR * 2.f, bodyR * 2.f);
-    g.setColour(cEdge);
-    g.drawEllipse(c.x - bodyR, c.y - bodyR, bodyR * 2.f, bodyR * 2.f, 1.f);
-    const float pa = ang(value) - juce::MathConstants<float>::halfPi; // convert 12-o'clock-based to standard
-    g.setColour(cText);
-    g.drawLine(c.x + std::cos(pa) * bodyR * 0.35f, c.y + std::sin(pa) * bodyR * 0.35f,
-               c.x + std::cos(pa) * (bodyR - 1.5f), c.y + std::sin(pa) * (bodyR - 1.5f), 2.f);
-
-    // live modulated position: a small dot riding on the value track
-    if (std::abs(modOff) > 0.002f) {
-        const float la = ang(value + modOff) - juce::MathConstants<float>::halfPi;
+    // ---- machined graphite body ----
+    {
+        juce::ColourGradient grad(raised.brighter(0.18f), c.x - bodyR * 0.6f, c.y - bodyR * 0.7f,
+                                  card.darker(0.25f), c.x + bodyR * 0.6f, c.y + bodyR * 0.8f, false);
+        g.setGradientFill(grad);
+        g.fillEllipse(c.x - bodyR, c.y - bodyR, bodyR * 2.f, bodyR * 2.f);
+        g.setColour(juce::Colours::black.withAlpha(0.45f));
+        g.drawEllipse(c.x - bodyR, c.y - bodyR, bodyR * 2.f, bodyR * 2.f, 1.f);
+        if (bodyR > 9.f) {
+            g.setColour(juce::Colours::white.withAlpha(0.07f));
+            g.strokePath(arc(bodyR - 1.f, -juce::MathConstants<float>::pi * 0.4f, juce::MathConstants<float>::pi * 0.4f),
+                         juce::PathStrokeType(1.f));
+        }
+    }
+    {
+        const auto p0 = polar(ang(value), bodyR * 0.30f), p1 = polar(ang(value), bodyR - 1.5f);
+        g.setColour(enabled ? textPrimary : textDisabled);
+        g.drawLine(p0.x, p0.y, p1.x, p1.y, sz == Size::Small ? 1.5f : 1.8f);
+    }
+    if (std::abs(modOff) > 0.002f && enabled) { // live modulated value: a white dot on the value arc
+        const auto lp = polar(ang(value + modOff), rk);
+        const float d = arcW * 0.7f + 0.5f;
         g.setColour(juce::Colours::white);
-        g.fillEllipse(c.x + std::cos(la) * rk - 2.2f, c.y + std::sin(la) * rk - 2.2f, 4.4f, 4.4f);
+        g.fillEllipse(lp.x - d, lp.y - d, d * 2.f, d * 2.f);
+    }
+    if (hasKeyboardFocus(false)) {
+        juce::Path fr; fr.addEllipse(c.x - R, c.y - R, 2.f * R, 2.f * R);
+        juce::Path dashed; const float dash[] = { 2.f, 2.f };
+        juce::PathStrokeType(1.f).createDashedStroke(dashed, fr, dash, 2);
+        g.setColour(focus.withAlpha(0.5f));
+        g.fillPath(dashed);
     }
 
-    // ---- badges ----
-    const bool showBadges = !routes.empty() && (hasBadgeRow() || !overCircle || badgeDrag >= 0);
-    if (showBadges) {
-        for (int i = 0; i < (int) routes.size(); ++i) {
-            const auto& rt = routes[(size_t) i];
-            const auto br = badgeRect(i);
-            const auto col = modSrcColour(rt.src);
-            const bool hot = i == hoverBadge || i == badgeDrag;
-            g.setColour(col.withAlpha(hot ? 0.45f : 0.22f));
-            g.fillRoundedRectangle(br, 2.5f);
-            // amount bar along the bottom edge (bipolar from the centre)
-            const float mid = br.getCentreX(), x = mid + rt.amount * br.getWidth() * 0.5f;
+    // ---- badges (own row; overflow collapses into "+n") ----
+    const int shown = shownBadges();
+    for (int i = 0; i < shown + (hasOverflow() ? 1 : 0); ++i) {
+        const auto br = badgeRect(i);
+        const bool over = i == shown;
+        const auto col = over ? textLabel : modSrcColour(routes[(size_t) i].src);
+        const bool hot = i == hoverBadge || i == badgeDrag || (!over && routes[(size_t) i].src == hoveredModSource());
+        g.setColour(col.withAlpha(hot ? 0.40f : 0.16f));
+        g.fillRoundedRectangle(br, 2.5f);
+        if (!over) { // depth bar along the bottom edge (bipolar from the centre)
+            const float amt = routes[(size_t) i].amount;
+            const float mid = br.getCentreX(), x = mid + amt * br.getWidth() * 0.5f;
             g.setColour(col);
             g.fillRect(juce::Rectangle<float>(juce::jmin(mid, x), br.getBottom() - 2.f, std::abs(x - mid), 2.f));
-            g.drawRoundedRectangle(br, 2.5f, hot ? 1.2f : 0.8f);
-            if (br.getWidth() >= 11.f) {
-                g.setColour(hot ? juce::Colours::white : col.brighter(0.3f));
-                g.setFont(font(8.5f, true));
-                g.drawText(badgeText(rt.src), br.withTrimmedBottom(1.f).toNearestInt(), juce::Justification::centred, false);
-            }
+        }
+        g.setColour(col.withAlpha(hot ? 1.f : 0.65f));
+        g.drawRoundedRectangle(br, 2.5f, hot ? 1.2f : 0.8f);
+        if (br.getWidth() >= 11.f) {
+            g.setColour(hot ? juce::Colours::white : col.brighter(0.35f));
+            g.setFont(fBadge());
+            g.drawText(over ? "+" + juce::String((int) routes.size() - shown) : badgeText(routes[(size_t) i].src),
+                       br.withTrimmedBottom(1.5f).toNearestInt(), juce::Justification::centred, false);
         }
     }
 
-    // ---- label / value line ----
-    const auto labelRect = juce::Rectangle<int>(0, getHeight() - (int) labelH, getWidth(), (int) labelH);
-    if (badgeDrag >= 0 || hoverBadge >= 0) {
+    // ---- label / value ----
+    juce::Rectangle<int> labelRect;
+    if (inlineMode) {
+        auto t = getLocalBounds().withTrimmedLeft(getHeight() + 4);
+        if (!routes.empty()) t.setRight((int) badgeRect(0).getX() - 3);
+        labelRect = t;
+    } else {
+        labelRect = { 0, getHeight() - (int) kLabelH, getWidth(), (int) kLabelH };
+    }
+    const auto just = inlineMode ? juce::Justification::centredLeft : juce::Justification::centred;
+    const bool badgeInfo = (badgeDrag >= 0 || hoverBadge >= 0) && (badgeDrag >= 0 ? badgeDrag : hoverBadge) < shown;
+    if (badgeInfo) {
         const auto& rt = routes[(size_t) (badgeDrag >= 0 ? badgeDrag : hoverBadge)];
-        if (hasBadgeRow() || badgeDrag >= 0) {
-            g.setColour(modSrcColour(rt.src));
-            g.setFont(font(10.f, true));
-            const juce::String t = juce::String(modSrcShort(rt.src)) + " " + (rt.amount >= 0.f ? "+" : "") +
-                                   juce::String(juce::roundToInt(rt.amount * 100.f)) + "%";
-            if (hasBadgeRow()) g.drawFittedText(t, labelRect, juce::Justification::centred, 1, 0.7f);
-        }
-    } else if (!showBadges || hasBadgeRow()) {
-        const bool showVal = hover || dragging;
-        g.setColour(showVal ? cAccent : cDim);
-        g.setFont(font(showVal ? 10.5f : 10.f, showVal));
-        g.drawFittedText(showVal ? fmt(value) : label, labelRect, juce::Justification::centred, 1, 0.7f);
+        g.setColour(modSrcColour(rt.src));
+        g.setFont(fValue());
+        g.drawFittedText(juce::String(modSrcShort(rt.src)) + " " + (rt.amount >= 0.f ? "+" : "") +
+                             juce::String(juce::roundToInt(rt.amount * 100.f)) + "%", labelRect, just, 1, 0.8f);
+    } else if (inlineMode) {
+        // "Mix  100%": label in the label colour, value in the value colour
+        const bool active = (hover && overCircle) || dragging || hasKeyboardFocus(false);
+        g.setFont(fLabel());
+        g.setColour(enabled ? textLabel : textDisabled);
+        const int lw = (int) std::ceil(fLabel().getStringWidthFloat(label)) + 5;
+        g.drawText(label, labelRect.withWidth(lw), juce::Justification::centredLeft, false);
+        g.setFont(fValue());
+        g.setColour(!enabled ? textDisabled : (active ? accent : textPrimary));
+        g.drawFittedText(fmt(value), labelRect.withTrimmedLeft(lw), juce::Justification::centredLeft, 1, 0.8f);
+    } else {
+        const bool showVal = (hover && overCircle) || dragging || hasKeyboardFocus(false);
+        const auto labelFont = fLabel(); // same label style at every knob size
+        g.setColour(!enabled ? textDisabled : (showVal ? accent : textLabel));
+        g.setFont(showVal ? fValue() : labelFont);
+        g.drawFittedText(showVal ? fmt(value) : label, labelRect, just, 1, 0.85f);
     }
 }
 
@@ -220,19 +344,34 @@ void Knob::tick()
         for (size_t i = 0; same && i < r.size(); ++i)
             same = r[i].row == routes[i].row && r[i].src == routes[i].src && std::abs(r[i].amount - routes[i].amount) < 1e-4f;
         if (!same) {
+            if (r.size() > routes.size()) flash = 1.f; // a route was added: brief confirmation
             routes = std::move(r);
-            if (hoverBadge >= (int) routes.size()) hoverBadge = -1;
+            if (hoverBadge >= (int) routes.size() + 1) hoverBadge = -1;
             if (badgeDrag >= (int) routes.size()) badgeDrag = -1;
             rep = true;
         }
+        // drag-to-modulate in progress? show this knob as a valid target
+        int hint = 0;
+        if (auto* dc = juce::DragAndDropContainer::findParentDragContainerFor(this))
+            if (dc->isDragAndDropActive()) {
+                const auto d = dc->getCurrentDragDescription().toString();
+                if (d.startsWith("mod:")) hint = d.fromFirstOccurrenceOf("mod:", false, false).getIntValue();
+            }
+        if (hint != dragHintSrc) { dragHintSrc = hint; rep = true; }
+        const int hs = hoveredModSource();
+        if (hs != lastHoverSrc) {
+            const bool involved = std::any_of(routes.begin(), routes.end(), [&](const NfModRoute& x) { return x.src == hs || x.src == lastHoverSrc; });
+            lastHoverSrc = hs;
+            if (involved) rep = true;
+        }
     }
+    if (flash > 0.f) { flash = juce::jmax(0.f, flash - 0.08f); rep = true; }
     if (rep) repaint();
 }
 
 void Knob::mouseMove(const juce::MouseEvent& e)
 {
-    const auto b = getLocalBounds().toFloat();
-    const bool oc = e.position.y < b.getBottom() - 12.f - (hasBadgeRow() ? 11.f : 0.f);
+    const bool oc = circleArea().contains(e.position);
     const int hb = badgeAt(e.position);
     if (oc != overCircle || hb != hoverBadge) { overCircle = oc; hoverBadge = hb; repaint(); }
 }
@@ -240,6 +379,7 @@ void Knob::mouseMove(const juce::MouseEvent& e)
 void Knob::mouseDown(const juce::MouseEvent& e)
 {
     const int bi = badgeAt(e.position);
+    if (bi >= 0 && bi == shownBadges()) { showRoutesMenu(); return; } // "+n": list every assignment
     if (bi >= 0) {
         if (e.mods.isPopupMenu()) { showBadgeMenu(bi); return; }
         badgeDrag = bi;
@@ -275,8 +415,7 @@ void Knob::mouseDrag(const juce::MouseEvent& e)
         return;
     }
     const float sens = fine < 1.f ? 1.f / 1000.f : 1.f / 180.f;
-    const float nv = juce::jlimit(0.f, 1.f, dragStartVal + dy * sens);
-    att->setValueAsPartOfGesture(nv);
+    att->setValueAsPartOfGesture(juce::jlimit(0.f, 1.f, dragStartVal + dy * sens));
 }
 
 void Knob::mouseUp(const juce::MouseEvent&)
@@ -292,7 +431,8 @@ void Knob::mouseDoubleClick(const juce::MouseEvent& e)
 {
     if (e.mods.isPopupMenu()) return;
     const int bi = badgeAt(e.position);
-    if (bi >= 0) { proc.removeRoute(routes[(size_t) bi].row); return; } // double-click a badge removes that route
+    if (bi >= 0 && bi < shownBadges()) { proc.removeRoute(routes[(size_t) bi].row); return; }
+    if (bi >= 0) return;
     att->setValueAsCompleteGesture(defNorm);
 }
 
@@ -301,8 +441,8 @@ void Knob::showBadgeMenu(int bi)
     const auto rt = routes[(size_t) bi];
     juce::PopupMenu m;
     m.addSectionHeader(juce::String(modSrcShort(rt.src)) + "  " + juce::String(juce::roundToInt(rt.amount * 100.f)) + "%");
-    m.addItem(1, "Invert amount");
-    m.addItem(2, "Set to +50%");
+    m.addItem(1, "Invert depth");
+    m.addItem(2, "Set depth to +50%");
     m.addItem(3, "Remove modulation");
     juce::Component::SafePointer<Knob> sp(this);
     m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this), [sp, rt](int r) {
@@ -311,6 +451,113 @@ void Knob::showBadgeMenu(int bi)
         else if (r == 2) sp->proc.setRouteAmount(rt.row, 0.5f);
         else if (r == 3) sp->proc.removeRoute(rt.row);
     });
+}
+
+//==============================================================================================
+// Every modulation route on one parameter, each with a draggable depth bar, invert and remove.
+// Opened from a knob's "+n" badge (or "Edit all modulation..." in its menu). Rows are bound to the matrix
+// parameters, so edits go through the normal parameter path (host automation and undo stay intact).
+class RoutesPopover : public juce::Component, public Tickable {
+public:
+    RoutesPopover(NeuroforgeProcessor& p, int paramId, juce::String title) : proc(p), pid(paramId), heading(std::move(title))
+    {
+        rebuild();
+    }
+
+    void tick() override
+    {
+        if (!isShowing()) return;
+        auto now = proc.getRoutesFor(pid);
+        bool same = now.size() == shown.size();
+        for (size_t i = 0; same && i < now.size(); ++i) same = now[i].row == shown[i].row && now[i].src == shown[i].src;
+        if (!same) rebuild();
+    }
+
+    void paint(juce::Graphics& g) override
+    {
+        g.setColour(tok::textPrimary);
+        g.setFont(fModule());
+        g.drawText("Modulation: " + heading, 10, 6, getWidth() - 20, 18, juce::Justification::centredLeft);
+        g.setColour(tok::textSecondary);
+        g.setFont(fMeta());
+        g.drawText("drag a bar for depth  /  double-click = 0", 10, 22, getWidth() - 20, 14, juce::Justification::centredLeft);
+        if (shown.empty()) {
+            g.setColour(tok::textSecondary);
+            g.setFont(fLabel());
+            g.drawText("No modulation on this parameter.", 10, kTop, getWidth() - 20, kRowH, juce::Justification::centredLeft);
+        }
+        for (size_t i = 0; i < shown.size(); ++i) {
+            const int y = kTop + (int) i * kRowH;
+            const auto col = modSrcColour(shown[i].src);
+            g.setColour(col);
+            g.fillRoundedRectangle(10.f, (float) y + 6.f, 3.f, (float) kRowH - 12.f, 1.5f);
+            g.setFont(fLabel());
+            g.setColour(col.brighter(0.2f));
+            g.drawText(juce::String(modSrcNames()[(size_t) shown[i].src]), 18, y, kNameW - 10, kRowH, juce::Justification::centredLeft);
+        }
+    }
+
+    void resized() override
+    {
+        for (size_t i = 0; i < rows.size(); ++i) {
+            const int y = kTop + (int) i * kRowH;
+            auto r = juce::Rectangle<int>(kNameW + 8, y + 3, getWidth() - kNameW - 16, kRowH - 6);
+            rows[i].del->setBounds(r.removeFromRight(22));
+            r.removeFromRight(3);
+            rows[i].inv->setBounds(r.removeFromRight(22));
+            r.removeFromRight(5);
+            rows[i].bar->setBounds(r);
+        }
+    }
+
+private:
+    struct Row { std::unique_ptr<ParamBar> bar; std::unique_ptr<juce::TextButton> inv, del; };
+    static constexpr int kTop = 40, kRowH = 28, kNameW = 92;
+
+    void rebuild()
+    {
+        rows.clear();
+        shown = proc.getRoutesFor(pid);
+        for (auto& rt : shown) {
+            Row row;
+            row.bar = std::make_unique<ParamBar>(proc, pid::mx(rt.row, pid::mxAmt), "");
+            row.bar->fill = modSrcColour(rt.src);
+            row.bar->fmt = [](float n) { const int v = juce::roundToInt((n * 2.f - 1.f) * 100.f); return (v > 0 ? "+" : "") + juce::String(v) + "%"; };
+            row.bar->setTooltip("Depth: drag left/right, double-click for 0");
+            row.inv = std::make_unique<juce::TextButton>(juce::String::fromUTF8("\xc2\xb1"));
+            row.inv->setTooltip("Invert depth");
+            const int mxRow = rt.row;
+            row.inv->onClick = [this, mxRow] {
+                const int amtId = pid::mx(mxRow, pid::mxAmt);
+                proc.setRouteAmount(mxRow, -normToReal(amtId, proc.getRaw(amtId)));
+            };
+            row.del = std::make_unique<juce::TextButton>(juce::String::fromUTF8("\xc3\x97"));
+            setStyle(*row.del, "icon");
+            row.del->setTooltip("Remove this modulation");
+            row.del->onClick = [this, mxRow] { proc.removeRoute(mxRow); };
+            addAndMakeVisible(*row.bar);
+            addAndMakeVisible(*row.inv);
+            addAndMakeVisible(*row.del);
+            rows.push_back(std::move(row));
+        }
+        setSize(330, kTop + juce::jmax(1, (int) shown.size()) * kRowH + 8);
+        resized();
+        repaint();
+    }
+
+    NeuroforgeProcessor& proc;
+    int pid;
+    juce::String heading;
+    std::vector<NfModRoute> shown;
+    std::vector<Row> rows;
+};
+
+void Knob::showRoutesMenu()
+{
+    auto content = std::make_unique<RoutesPopover>(proc, pid, label);
+    auto area = getScreenBounds();
+    if (auto* top = getTopLevelComponent()) area = top->getLocalArea(nullptr, area);
+    juce::CallOutBox::launchAsynchronously(std::move(content), area, getTopLevelComponent());
 }
 
 void Knob::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w)
@@ -342,7 +589,8 @@ void Knob::showMenu()
     for (auto& r : routes)
         m.addItem(100 + r.row, juce::String("Remove modulation from ") + modSrcShort(r.src) +
                                    " (" + juce::String(r.amount, 2) + ")");
-    if (!routes.empty()) m.addSeparator();
+    if (!routes.empty()) { m.addItem(3, "Edit all modulation..."); m.addSeparator(); }
+    m.addItem(2, "Enter value...");
     m.addItem(1, "Reset to default");
     if (modulatable) {
         juce::PopupMenu mac;
@@ -354,9 +602,41 @@ void Knob::showMenu()
     m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this), [sp](int r) {
         if (sp == nullptr || r == 0) return;
         if (r == 1) sp->att->setValueAsCompleteGesture(sp->defNorm);
+        else if (r == 2) sp->enterValue();
+        else if (r == 3) sp->showRoutesMenu();
         else if (r >= 100 && r < 200) sp->proc.removeRoute(r - 100);
         else if (r >= 200 && r < 208) sp->proc.addRoute((int) ModSrc::Macro1 + (r - 200), sp->pid, 0.5f);
     });
+}
+
+bool Knob::keyPressed(const juce::KeyPress& k)
+{
+    const auto& d = paramDefs()[(size_t) pid];
+    const float steps = discrete ? std::max(1.f, d.max - d.min) : 100.f;
+    const float step = (k.getModifiers().isShiftDown() ? 0.2f : 1.f) / steps;
+    const int code = k.getKeyCode();
+    if (code == juce::KeyPress::upKey || code == juce::KeyPress::rightKey) { att->setValueAsCompleteGesture(juce::jlimit(0.f, 1.f, value + step)); return true; }
+    if (code == juce::KeyPress::downKey || code == juce::KeyPress::leftKey) { att->setValueAsCompleteGesture(juce::jlimit(0.f, 1.f, value - step)); return true; }
+    if (code == juce::KeyPress::deleteKey || code == juce::KeyPress::backspaceKey) { att->setValueAsCompleteGesture(defNorm); return true; }
+    if (code == juce::KeyPress::returnKey) { enterValue(); return true; }
+    return false;
+}
+
+void Knob::enterValue()
+{
+    auto* prm = proc.getParam(pid);
+    auto* w = new juce::AlertWindow(juce::String(paramDefs()[(size_t) pid].name), "Type a value (units optional):",
+                                    juce::MessageBoxIconType::NoIcon, this);
+    w->addTextEditor("v", fmt(value));
+    w->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    w->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    if (auto* ed = w->getTextEditor("v")) { ed->setFont(fValue()); ed->selectAll(); }
+    juce::Component::SafePointer<Knob> sp(this);
+    w->enterModalState(true, juce::ModalCallbackFunction::create([sp, w, prm](int r) {
+        if (sp != nullptr && r == 1)
+            if (auto* ed = w->getTextEditor("v"))
+                sp->att->setValueAsCompleteGesture(prm->getValueForText(ed->getText().trim()));
+    }), true);
 }
 
 //==============================================================================================
@@ -404,16 +684,21 @@ void Bar::paint(juce::Graphics& g)
         f = { std::min(mid, x), r.getY(), std::abs(x - mid), r.getHeight() };
     } else
         f = r.withWidth(r.getWidth() * value);
-    g.setColour(cAccent.withAlpha(0.75f));
+    g.setColour(fill.withAlpha(0.75f));
     g.fillRoundedRectangle(f, 3.f);
-    g.setColour(cEdge);
+    if (bipolar) { // centre mark
+        g.setColour(tok::textSecondary);
+        g.drawVerticalLine((int) r.getCentreX(), r.getY() + 2.f, r.getBottom() - 2.f);
+    }
+    g.setColour(isMouseOver() ? cEdge.brighter(0.3f) : cEdge);
     g.drawRoundedRectangle(r, 3.f, 1.f);
-    g.setFont(font(10.5f));
-    g.setColour(cText);
-    auto tr = getLocalBounds().reduced(4, 0);
+    auto tr = getLocalBounds().reduced(5, 0);
+    g.setFont(fLabel());
+    g.setColour(tok::textPrimary);
     if (label.isNotEmpty()) g.drawText(label, tr, juce::Justification::centredLeft);
     if (fmt) {
-        g.setColour(bipolar || value > 0.5f ? juce::Colours::white : cText);
+        g.setFont(fValue());
+        g.setColour(juce::Colours::white);
         g.drawText(fmt(value), tr, juce::Justification::centredRight);
     }
 }
@@ -459,6 +744,7 @@ ParamBar::ParamBar(NeuroforgeProcessor& p, int paramId, const juce::String& lbl)
 ModChip::ModChip(NeuroforgeProcessor& p, int s, juce::String t) : proc(p), src(s), text(t.isEmpty() ? juce::String(modSrcShort(s)) : t)
 {
     setMouseCursor(juce::MouseCursor::DraggingHandCursor);
+    setRepaintsOnMouseActivity(true);
     setTooltip("Drag onto a knob to modulate it");
 }
 
@@ -466,17 +752,18 @@ void ModChip::paint(juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat().reduced(0.5f);
     const auto col = modSrcColour(src);
-    g.setColour(col.withAlpha(0.12f));
-    g.fillRoundedRectangle(r, 4.f);
-    g.setColour(col.withAlpha(0.8f));
-    g.drawRoundedRectangle(r, 4.f, 1.f);
-    if (level > 0.01f) {
-        g.setColour(col.withAlpha(0.55f));
-        g.fillRoundedRectangle(r.getX() + 2.f, r.getBottom() - 4.f, (r.getWidth() - 4.f) * juce::jlimit(0.f, 1.f, level), 2.f, 1.f);
+    const bool over = isMouseOver();
+    g.setColour(col.withAlpha(over ? 0.22f : 0.12f));
+    g.fillRoundedRectangle(r, 3.f);
+    g.setColour(col.withAlpha(over ? 1.f : 0.6f));
+    g.drawRoundedRectangle(r, 3.f, 1.f);
+    if (level > 0.01f) { // live activity of the source
+        g.setColour(col.withAlpha(0.6f));
+        g.fillRoundedRectangle(r.getX() + 2.f, r.getBottom() - 3.5f, (r.getWidth() - 4.f) * juce::jlimit(0.f, 1.f, level), 2.f, 1.f);
     }
-    g.setColour(col);
-    g.setFont(font(10.f, true));
-    g.drawFittedText(text, getLocalBounds().reduced(2, 0), juce::Justification::centred, 1, 0.7f);
+    g.setColour(col.brighter(over ? 0.4f : 0.2f));
+    g.setFont(fBadge());
+    g.drawFittedText(text, getLocalBounds().reduced(2, 0), juce::Justification::centred, 1, 0.8f);
 }
 
 void ModChip::tick()
@@ -488,6 +775,7 @@ void ModChip::tick()
     else if (src >= 4 && src <= 7) v = std::abs(e.uiLfo[src - 4].load(std::memory_order_relaxed));
     else if (src >= 8 && src <= 10) v = std::abs(e.uiMotion[src - 8].load(std::memory_order_relaxed));
     else if (src >= 11 && src <= 18) v = proc.getRaw(pid::macro(src - 11));
+    else if (src == (int) ModSrc::Step1 || src == (int) ModSrc::Step2) v = e.uiStepper[src - (int) ModSrc::Step1].load(std::memory_order_relaxed);
     else return;
     if (std::abs(v - level) > 0.01f) { level = v; repaint(); }
 }
