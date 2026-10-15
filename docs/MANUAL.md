@@ -12,7 +12,7 @@ You can have a mix-ready neuro bass in about two minutes: pick an archetype, pre
 2. Write a bassline around **F1–F2** (MIDI notes 29–41). Every preset is tuned for that range, and the sub follows the note you play.
 3. Pick an archetype in the dropdown next to **FORGE** (for example *FM Growl*) and click **FORGE**. Each click makes a new variation at a consistent loudness.
 4. Turn the eight **MACROS** (bottom left). Start with GROWL, TALK and GRIT.
-5. Like it but want a sibling? Set the slider under **MUTATE** (subtle, medium or wild) and click **MUTATE**.
+5. Like it but want a sibling? Set the slider under **MUTATE** (subtle, medium or wild) and click **MUTATE**. Didn't like the result? Click **UNDO**.
 6. Click **Save** to keep it. User presets appear under *User* in the preset menu.
 7. Going deeper: click **NEXT GEN** to resample the sound into a wavetable and process it again. See [Capture and Next Gen](#capture-and-next-gen).
 
@@ -30,7 +30,7 @@ The window has six areas, laid out in the order the sound travels: source on the
 
 | Area | Where | What it is for |
 | --- | --- | --- |
-| Top bar | Top | Presets, Save, archetype + FORGE, MUTATE, CAPTURE, NEXT GEN, capture settings (**...**), quality (1x/2x/4x), Master gain and the output meter |
+| Top bar | Top | Presets, Save, archetype + FORGE, MUTATE, UNDO, CAPTURE, NEXT GEN, capture settings (**...**), quality (1x/2x/4x), Master gain and the output meter |
 | Source | Left | Tabs OSC A, OSC B, FM OP, SUB+NZ and FILTER: everything that makes the raw sound, per voice |
 | The Forge | Middle | Three passes, each with its own Motion and up to four FX slots |
 | Output | Right | Low Guard, Sub Warmth, Sub Level, Mid Level, Mid Width, Master Clip, plus an oscilloscope and spectrum |
@@ -71,6 +71,8 @@ FORGE builds a complete patch for the chosen archetype. That covers the source, 
 - **wild**: may also swap "character" effects (comb, phaser, flanger, disperse, frequency shift, ring mod, formant, fold) for siblings.
 
 Mutate never touches the master section, Low Guard, the sub, oscillator levels, the amp envelope, macros or modulation routes. It re-matches loudness afterwards.
+
+**UNDO** (next to MUTATE) steps back through your last whole-patch changes: FORGE, MUTATE, NEXT GEN, loading a preset and Init. It remembers up to 32 steps. Knob tweaks are not part of this history; use your DAW's undo for those.
 
 ## The eight macros
 

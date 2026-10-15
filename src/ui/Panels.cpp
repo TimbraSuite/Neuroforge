@@ -745,6 +745,7 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     archetype = make<juce::ComboBox>();
     forge = make<juce::TextButton>("FORGE");
     mutate = make<juce::TextButton>("MUTATE");
+    undo = make<juce::TextButton>("UNDO");
     mutAmt = make<Bar>();
     capture = make<juce::TextButton>("CAPTURE");
     nextGen = make<juce::TextButton>("NEXT GEN");
@@ -769,6 +770,10 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     mutate->setColour(juce::TextButton::textColourOffId, cCyan);
     mutate->setTooltip("Nudge the current patch (subtle .. wild)");
     mutate->onClick = [this] { proc.mutate(mutateAmount); };
+    undo->setColour(juce::TextButton::buttonColourId, cPanel2);
+    undo->setColour(juce::TextButton::textColourOffId, cText);
+    undo->setTooltip("Go back to the patch before the last FORGE, MUTATE, NEXT GEN or preset change");
+    undo->onClick = [this] { proc.undo(); };
     mutAmt->label = "Amount";
     mutAmt->defaultValue = 0.4f;
     mutAmt->setValue(0.4f);
@@ -808,6 +813,7 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
         archetype->setBounds(484, y1, 104, h1);
         forge->setBounds(592, y1, 74, 34);
         mutate->setBounds(690, y1, 70, h1);
+        undo->setBounds(764, y1, 56, h1);
         mutAmt->setBounds(690, 30, 120, 12);
         capture->setBounds(830, y1, 76, h1);
         nextGen->setBounds(910, y1, 80, h1);
@@ -826,6 +832,7 @@ void TopBar::tick()
     const bool busy = proc.isCapturing();
     const auto st = proc.getCaptureStatus();
     if (st != lastStatus) { lastStatus = st; status->setText(st, juce::dontSendNotification); }
+    if (proc.canUndo() != lastCanUndo) { lastCanUndo = proc.canUndo(); undo->setEnabled(lastCanUndo); }
     if (busy != lastBusy) {
         lastBusy = busy;
         capture->setEnabled(!busy);

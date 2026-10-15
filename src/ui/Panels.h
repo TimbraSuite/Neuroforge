@@ -97,13 +97,13 @@ private:
     void showCaptureSettings();
     NeuroforgeProcessor& proc;
     juce::TextButton *prev = nullptr, *next = nullptr, *presetBtn = nullptr, *saveBtn = nullptr, *forge = nullptr,
-                     *mutate = nullptr, *capture = nullptr, *nextGen = nullptr, *capSet = nullptr;
+                     *mutate = nullptr, *undo = nullptr, *capture = nullptr, *nextGen = nullptr, *capSet = nullptr;
     juce::ComboBox* archetype = nullptr;
     Bar* mutAmt = nullptr;
     juce::Label* status = nullptr;
     std::vector<NfPresetEntry> presetCache;
     juce::String lastName, lastStatus;
-    bool lastBusy = false;
+    bool lastBusy = false, lastCanUndo = true;
     float mutateAmount = 0.4f;
 };
 

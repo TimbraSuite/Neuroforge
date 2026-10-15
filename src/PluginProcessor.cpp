@@ -123,6 +123,7 @@ void NeuroforgeProcessor::applyStartupPresetIfFresh()
     NfPresetEntry e;
     e.name = fp.front().name; e.category = fp.front().category; e.factoryIndex = 0;
     loadPreset(e);
+    undoStack.clear(); // nothing to undo back to on a fresh instance
 }
 
 NeuroforgeProcessor::~NeuroforgeProcessor()
@@ -275,8 +276,25 @@ std::vector<NfPresetEntry> NeuroforgeProcessor::getPresetList() const
     return list;
 }
 
+void NeuroforgeProcessor::pushUndo()
+{
+    undoStack.push_back({ currentState(), presetName });
+    if (undoStack.size() > kMaxUndo) undoStack.erase(undoStack.begin());
+}
+
+void NeuroforgeProcessor::undo()
+{
+    if (undoStack.empty()) return;
+    auto entry = std::move(undoStack.back());
+    undoStack.pop_back();
+    loadState(entry.state);
+    presetName = entry.name;
+    sendChangeMessage();
+}
+
 void NeuroforgeProcessor::loadPreset(const NfPresetEntry& e)
 {
+    pushUndo();
     if (e.user) {
         ParamState s;
         if (!s.fromText(e.file.loadFileAsString().toStdString())) return;
@@ -292,6 +310,7 @@ void NeuroforgeProcessor::loadPreset(const NfPresetEntry& e)
 
 void NeuroforgeProcessor::initPatch()
 {
+    pushUndo();
     loadState(ParamState());
     presetName = "Init";
     sendChangeMessage();
@@ -314,6 +333,7 @@ void NeuroforgeProcessor::generate(int archetype, uint32_t seed)
 {
     const int n = (int) archetypeNames().size();
     archetype = std::clamp(archetype, 0, n - 1);
+    pushUndo();
     loadState(generatePatch((Archetype) archetype, seed));
     presetName = juce::String(archetypeNames()[(size_t) archetype]) + " " + juce::String((int) (seed % 1000u));
     sendChangeMessage();
@@ -321,6 +341,7 @@ void NeuroforgeProcessor::generate(int archetype, uint32_t seed)
 
 void NeuroforgeProcessor::mutate(float amount)
 {
+    pushUndo();
     auto s = currentState();
     mutatePatch(s, amount, (uint32_t) juce::Random::getSystemRandom().nextInt());
     loadState(s);
@@ -384,6 +405,7 @@ void NeuroforgeProcessor::handleAsyncUpdate()
 {
     const int slot = pendingNextGen.exchange(-1);
     if (slot >= 0) {
+        pushUndo();
         loadState(nextGenerationState(currentState(), slot));
         presetName = "Gen from slot " + juce::String(slot + 1);
     }

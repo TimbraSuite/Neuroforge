@@ -58,6 +58,11 @@ public:
     void loadState(const nf::ParamState& s);
     juce::String presetName { "Init" };
     void applyStartupPresetIfFresh();
+
+    // Undo history for whole-patch changes (FORGE, MUTATE, NEXT GEN, preset load, Init).
+    // Message thread only.
+    bool canUndo() const { return !undoStack.empty(); }
+    void undo();
     std::vector<NfPresetEntry> getPresetList() const;
     void loadPreset(const NfPresetEntry& e);
     void initPatch();
@@ -73,6 +78,10 @@ public:
     juce::String getCaptureStatus() const;
     std::atomic<int> captureGeneration { 0 };
     bool stateWasRestored = false, startupPresetApplied = false;
+    void pushUndo();
+    struct UndoEntry { nf::ParamState state; juce::String name; };
+    std::vector<UndoEntry> undoStack;
+    static constexpr size_t kMaxUndo = 32;
 
     // ---- modulation routing helpers ----
     std::vector<NfModRoute> getRoutesFor(int paramId) const;
