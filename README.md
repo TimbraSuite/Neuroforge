@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/huuba91/neuroforge/releases/tag/v0.1.1-beta"><b>⬇ Download v0.1.1-beta</b></a> ·
+  <a href="https://github.com/huuba91/neuroforge/releases/tag/v0.1.2-beta"><b>⬇ Download v0.1.2-beta</b></a> ·
   <a href="docs/MANUAL.md"><b>📖 Manual & tutorials</b></a> ·
   <a href="https://github.com/huuba91/neuroforge/issues">Report a bug</a>
 </p>
@@ -27,7 +27,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 - **FORGE.** One click generates a mix-ready patch for one of 9 archetypes: Reese, FM Growl, Talker, Metallic, Tearer, Hoover, Stab, Liquid and Donk. Each click is a new variation at a consistent loudness.
 - **8 macros with fixed meanings:** GROWL, TALK, GRIT, METAL, MOTION, WIDTH, SUB and TONE. They do the same job on every generated patch.
-- **MUTATE** varies the current sound (subtle, medium or wild) while keeping it musical.
+- **MUTATE** varies the current sound (subtle, medium or wild) while keeping it musical, and **UNDO** takes you back.
 - **The Forge:** 3 passes × 4 FX slots, choosing from 14 effect types.
   - Distortion and filtering: Drive and Fold (both antialiased with ADAA), Crush, Filter, Formant and Comb.
   - Modulation effects: Phaser, Flanger, Frequency Shifter, Ring Mod and Disperser-style dispersion.
@@ -49,7 +49,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 ## Install (beta)
 
-1. Download `Neuroforge-0.1.1-beta-win64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.1.1-beta).
+1. Download `Neuroforge-0.1.2-beta-win64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.1.2-beta).
 2. Install the format your DAW uses:
    - **VST3** (Ableton Live, Cubase, FL Studio, Studio One, Reaper, …): copy the **`Neuroforge.vst3`** folder to `C:\Program Files\Common Files\VST3\`.
    - **CLAP** (Bitwig, Reaper, FL Studio, Studio One, …): copy **`Neuroforge.clap`** to `C:\Program Files\Common Files\CLAP\`.
