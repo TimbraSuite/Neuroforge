@@ -83,7 +83,7 @@ static constexpr float kLabelH = 14.f, kBadgeH = 12.f, kBadgeMinW = 18.f, kBadge
 
 int& hoveredModSource() { static int s = 0; return s; }
 
-bool Knob::hasBadgeRow() const { return modulatable && !inlineMode && getHeight() >= 44; }
+bool Knob::hasBadgeRow() const { return !inlineMode && getHeight() >= 44; } // same geometry for every stacked knob
 
 Knob::Size Knob::sizeClass() const
 {

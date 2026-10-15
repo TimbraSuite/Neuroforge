@@ -6,6 +6,11 @@ using namespace nf;
 
 namespace nfui {
 
+// Shared bottom-row geometry so the macro knobs and the modulation-editor knobs line up across panels.
+static constexpr int kPanelInnerBottom = 6;  // gap between a bottom panel's content and its edge
+static constexpr int kMacroKnobH = 67;       // knob box (circle + badge row + label) used by macros and envelopes
+static constexpr int kCardBottomPad = 4;     // source-card padding below its controls
+
 //==============================================================================================
 // TabHost
 //==============================================================================================
@@ -512,12 +517,12 @@ std::unique_ptr<Page> makeMacroPanel(NeuroforgeProcessor& p)
     Page* rp = root.get();
     root->painter = [rp](juce::Graphics& g) { paintPanel(g, rp->getLocalBounds(), "MACROS"); };
     root->layout = [=](juce::Rectangle<int> r) {
-        r = r.reduced(8, 0).withTrimmedTop(22).withTrimmedBottom(6);
+        r = r.reduced(8, 0).withTrimmedTop(22).withTrimmedBottom(kPanelInnerBottom);
         const int cw = r.getWidth() / 4, ch = r.getHeight() / 2;
         for (int i = 0; i < 8; ++i) {
             const int x = r.getX() + (i % 4) * cw, y = r.getY() + (i / 4) * ch;
             chips[(size_t) i]->setBounds(x + 4, y, cw - 8, 16);
-            knobs[(size_t) i]->setBounds(x, y + 17, cw, ch - 17);
+            knobs[(size_t) i]->setBounds(x, y + ch - kMacroKnobH, cw, kMacroKnobH);
         }
     };
     return root;
@@ -692,13 +697,14 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
                 paintSourceCard(g, c->getLocalBounds(), tok::modEnv, "ENV " + juce::String(e + 1), e == 0 ? "AMP" : "");
             };
             c->layout = [=](juce::Rectangle<int> r) {
-                r = r.reduced(6, 4);
+                r = r.reduced(6, 0).withTrimmedTop(4).withTrimmedBottom(kCardBottomPad);
                 auto h = r.removeFromTop(20);
                 loop->setBounds(h.removeFromRight(64));
                 r.removeFromTop(3);
-                view->setBounds(r.removeFromTop(48));
-                r.removeFromTop(2);
-                placeCells(ks, r, 4, r.getHeight());
+                auto knobRow = r.removeFromBottom(kMacroKnobH); // same box as the macro knobs -> aligned
+                placeCells(ks, knobRow, 4, knobRow.getHeight());
+                r.removeFromBottom(3);
+                view->setBounds(r);
             };
             cols.push_back(c);
         }
@@ -731,7 +737,7 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
                 paintSourceCard(g, c->getLocalBounds(), tok::modLfo, "LFO " + juce::String(l + 1), {});
             };
             c->layout = [=](juce::Rectangle<int> r) {
-                r = r.reduced(6, 4);
+                r = r.reduced(6, 0).withTrimmedTop(4).withTrimmedBottom(kCardBottomPad);
                 auto h = r.removeFromTop(20);
                 h.removeFromLeft(58);
                 retrig->setBounds(h.removeFromRight(66));
@@ -905,7 +911,7 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
         }
     };
     root->layout = [=](juce::Rectangle<int> r) {
-        r = r.reduced(8, 6);
+        r = r.reduced(8, 0).withTrimmedTop(6).withTrimmedBottom(kPanelInnerBottom - kCardBottomPad);
         tabs->setBounds(r);
         auto strip = r.removeFromTop(24).withTrimmedLeft(4 * 88 + 6);
         *hintRect = strip.removeFromLeft(46);
