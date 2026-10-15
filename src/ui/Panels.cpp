@@ -1,5 +1,6 @@
 #include "Panels.h"
 #include <cmath>
+#include <cstring>
 
 using namespace nf;
 
@@ -211,6 +212,19 @@ std::unique_ptr<Page> makeSourcePanel(NeuroforgeProcessor& p)
 //==============================================================================================
 // FORGE
 //==============================================================================================
+// Display names for FX parameters (the parameter model keeps its own names; this is presentation only).
+static juce::String fxLabel(const char* name)
+{
+    static const std::pair<const char*, const char*> map[] = {
+        { "LowCut", "Low Cut" }, { "MidFreq", "Mid Freq" }, { "MidGain", "Mid Gain" }, { "KeyTrack", "Key Track" },
+        { "MonoBelow", "Mono Below" }, { "Feedback", "Feedback" }, { "Downward", "Down" }, { "Upward", "Up" } };
+    for (auto& m : map) if (std::strcmp(m.first, name) == 0) return m.second;
+    return name;
+}
+
+// Card geometry (shared by every effect type)
+static constexpr int kCardHead = 25, kCardKnobs = 60, kCardFoot = 24, kCardPad = 3;
+
 SlotStrip::SlotStrip(NeuroforgeProcessor& p, int s) : proc(p), slot(s)
 {
     using namespace pid;
@@ -225,6 +239,11 @@ SlotStrip::SlotStrip(NeuroforgeProcessor& p, int s) : proc(p), slot(s)
     for (int k = 0; k < 4; ++k) pk[k] = make<Knob>(p, pid::slot(s, sP1 + k));
     mix = make<Knob>(p, pid::slot(s, sMix), "Mix");
     mot = make<Knob>(p, pid::slot(s, sMotion), "Motion");
+    mix->setInline(true);
+    mot->setInline(true);
+    mix->setFormatter([](float n) { return juce::String(juce::roundToInt(n * 100.f)) + "%"; });
+    mot->setFormatter([](float n) { const int v = juce::roundToInt((n * 2.f - 1.f) * 100.f); return (v > 0 ? "+" : "") + juce::String(v) + "%"; });
+    mix->setTooltip("Dry / wet of this effect");
     mot->setTooltip("Motion amount (bipolar): how much this pass's Motion moves the first parameter");
 
     addBtn->onClick = [this] {
@@ -244,17 +263,18 @@ SlotStrip::SlotStrip(NeuroforgeProcessor& p, int s) : proc(p), slot(s)
         auto r = getLocalBounds().toFloat();
         g.setColour(card);
         g.fillRoundedRectangle(r, rCard);
-        g.setColour(juce::Colours::white.withAlpha(0.035f)); // top light edge
+        g.setColour(juce::Colours::white.withAlpha(0.04f)); // machined top edge
         g.drawHorizontalLine(1, r.getX() + rCard, r.getRight() - rCard);
-        g.setColour(accent.withAlpha(0.85f)); // marks an active effect next to its title
-        g.fillRoundedRectangle(r.getX() + 3.f, 6.f, 2.f, 12.f, 1.f);
+        g.setColour(raised.withAlpha(0.55f)); // header plate
+        g.fillRoundedRectangle(r.getX(), r.getY(), r.getWidth(), (float) kCardHead, rCard);
+        g.fillRect(r.getX(), (float) kCardHead - rCard, r.getWidth(), rCard);
+        g.setColour(accent.withAlpha(0.9f)); // active-effect marker next to the title
+        g.fillRoundedRectangle(r.getX() + 4.f, 7.f, 2.5f, 12.f, 1.f);
+        g.setColour(edgeSoft.brighter(0.1f));
+        g.drawHorizontalLine(kCardHead, r.getX(), r.getRight());
+        // footer separator (Mix / Motion belong to the slot, not to the effect)
         g.setColour(edgeSoft);
-        g.drawHorizontalLine(23, r.getX() + 6.f, r.getRight() - 6.f);
-        // separator between the effect's own parameters and the slot's Mix / Motion
-        if (sepX > 0) {
-            g.setColour(edgeSoft.brighter(0.15f));
-            g.drawVerticalLine(sepX, 30.f, r.getBottom() - 8.f);
-        }
+        g.drawHorizontalLine(getHeight() - kCardFoot - kCardPad / 2, r.getX() + 8.f, r.getRight() - 8.f);
     };
     applyType(type->getIndex());
 }
@@ -270,7 +290,7 @@ void SlotStrip::applyType(int t)
         pk[k]->setVisible(used);
         if (used) {
             ++numUsed;
-            pk[k]->setLabel(pi.name);
+            pk[k]->setLabel(fxLabel(pi.name));
             pk[k]->setBipolar(pi.min < 0.f && pi.max > 0.f);
             pk[k]->setFormatter([pi](float n) { return nfFormatFx(pi, n); });
             pk[k]->setTooltip(juce::String(info.name) + " " + pi.name + (k == 0 ? "  (moved by this pass's Motion)" : "") +
@@ -288,30 +308,35 @@ void SlotStrip::applyType(int t)
     if (onHeightChange) onHeightChange();
 }
 
+int SlotStrip::getDesiredHeight() const
+{
+    return off ? 21 : kCardHead + kCardPad + kCardKnobs + kCardPad + kCardFoot + kCardPad;
+}
+
 void SlotStrip::resized()
 {
     auto r = getLocalBounds();
-    if (off) { addBtn->setBounds(r); sepX = -1; return; }
-    auto head = r.removeFromTop(24).withTrimmedLeft(9).reduced(2, 2);
+    if (off) { addBtn->setBounds(r); return; }
+    auto head = r.removeFromTop(kCardHead).withTrimmedLeft(10).reduced(2, 3);
     remBtn->setBounds(head.removeFromRight(20));
     head.removeFromRight(2);
     type->setBounds(head);
-    // adaptive grid: the effect's own parameters get full-width cells, Mix / Motion slightly narrower
-    auto kr = r.reduced(3, 0).withTrimmedTop(3).withTrimmedBottom(3);
+    r.removeFromTop(kCardPad);
+    auto foot = r.removeFromBottom(kCardFoot + kCardPad).withTrimmedBottom(kCardPad).reduced(6, 1);
+    const int half = foot.getWidth() / 2;
+    mix->setBounds(foot.removeFromLeft(half - 3));
+    foot.removeFromLeft(6);
+    mot->setBounds(foot);
+    // the effect's own parameters: equal columns, centred, never narrower than the 4-parameter layout
+    auto kr = r.reduced(4, 0).removeFromTop(kCardKnobs);
     const int n = juce::jmax(1, numUsed);
-    const float secW = 0.82f, gap = 7.f;
-    const float unit = ((float) kr.getWidth() - gap) / ((float) n + 2.f * secW);
-    float x = (float) kr.getX();
+    const int colW = kr.getWidth() / juce::jmax(n, 3);
+    int x = kr.getCentreX() - colW * n / 2;
     for (int k = 0; k < 4; ++k) {
         if (!pk[k]->isVisible()) continue;
-        pk[k]->setBounds((int) x, kr.getY(), (int) unit, kr.getHeight());
-        x += unit;
+        pk[k]->setBounds(x, kr.getY(), colW, kr.getHeight());
+        x += colW;
     }
-    sepX = (int) (x + gap * 0.5f);
-    x += gap;
-    mix->setBounds((int) x, kr.getY(), (int) (unit * secW), kr.getHeight());
-    x += unit * secW;
-    mot->setBounds((int) x, kr.getY(), (int) (unit * secW), kr.getHeight());
 }
 
 //----------------------------------------------------------------------------------------------
@@ -341,13 +366,12 @@ void MotionEditor::resized()
 {
     auto r = getLocalBounds();
     if (r.isEmpty()) return;
-    // row 1: what it is (mode, shape) ; row 2: how fast (sync, rate)
     auto row1 = r.removeFromTop(21);
     mode->setBounds(row1.removeFromLeft(row1.getWidth() / 2 - 2));
     row1.removeFromLeft(4);
     shape->setVisible(!stepsMode);
     shape->setBounds(row1);
-    r.removeFromTop(3);
+    r.removeFromTop(4);
     auto row2 = r.removeFromTop(21);
     sync->setBounds(row2.removeFromLeft(62));
     row2.removeFromLeft(2);
@@ -355,34 +379,45 @@ void MotionEditor::resized()
     rate->setVisible(!synced);
     div->setBounds(row2);
     rate->setBounds(row2.reduced(0, 1));
-    r.removeFromTop(4);
-    auto viz = r.removeFromTop(30);
+    r.removeFromTop(5);
+    auto viz = r.removeFromTop(28);
     trace->setVisible(!stepsMode);
     seq->setVisible(stepsMode);
     trace->setBounds(viz);
     seq->setBounds(viz);
-    r.removeFromTop(2);
+    r.removeFromTop(4);
     steps->setVisible(stepsMode);
     glide->setVisible(stepsMode);
-    const int cw = r.getWidth() / 3;
-    depth->setBounds(r.getX(), r.getY(), cw, r.getHeight());
-    steps->setBounds(r.getX() + cw, r.getY(), cw, r.getHeight());
-    glide->setBounds(r.getX() + 2 * cw, r.getY(), cw, r.getHeight());
+    if (stepsMode) {
+        const int cw = r.getWidth() / 3;
+        depth->setBounds(r.getX(), r.getY(), cw, r.getHeight());
+        steps->setBounds(r.getX() + cw, r.getY(), cw, r.getHeight());
+        glide->setBounds(r.getX() + 2 * cw, r.getY(), cw, r.getHeight());
+    } else {
+        depth->setBounds(r.withSizeKeepingCentre(juce::jmin(r.getWidth(), 90), r.getHeight()));
+    }
 }
 
 //----------------------------------------------------------------------------------------------
-PassColumn::PassColumn(NeuroforgeProcessor& p, int i) : idx(i)
+PassColumn::PassColumn(NeuroforgeProcessor& p, int i) : proc(p), idx(i)
 {
     using namespace pid;
     on = make<ParamToggle>(p, pass(i, pOn), "");
     on->setTooltip("Pass on / off");
     chip = make<ModChip>(p, (int) ModSrc::Motion1 + i, "MOTION " + juce::String(i + 1));
     mixBar = make<ParamBar>(p, pass(i, pMix), "Mix");
+    mixBar->fmt = [](float n) { return juce::String(juce::roundToInt(n * 100.f)) + "%"; };
+    mixBar->setTooltip("Pass mix: blend this pass with its input (parallel processing)");
     motion = make<MotionEditor>(p, i);
+    chainView = make<juce::Viewport>();
+    chainView->setViewedComponent(&chain, false);
+    chainView->setScrollBarsShown(true, false, true, false);
+    chainView->setScrollBarThickness(6);
     for (int s = 0; s < 4; ++s) {
-        slots[s] = make<SlotStrip>(p, i * 4 + s);
+        slots[s] = chain.make<SlotStrip>(p, i * 4 + s);
         slots[s]->onHeightChange = [this] { resized(); repaint(); };
     }
+    on->onToggled = [this](bool) { updateActive(); };
     painter = [this](juce::Graphics& g) {
         using namespace tok;
         auto r = getLocalBounds().toFloat();
@@ -390,13 +425,30 @@ PassColumn::PassColumn(NeuroforgeProcessor& p, int i) : idx(i)
         g.fillRoundedRectangle(r, 6.f);
         g.setColour(edgeSoft);
         g.drawRoundedRectangle(r.reduced(0.5f), 6.f, 1.f);
-        g.setColour(textPrimary);
+        if (active) { // lit top edge on an active pass
+            g.setColour(accent.withAlpha(0.75f));
+            g.fillRoundedRectangle(r.getX() + 10.f, r.getY(), r.getWidth() - 20.f, 2.f, 1.f);
+        }
+        g.setColour(active ? textPrimary : textSecondary);
         g.setFont(fSection());
         g.drawText("PASS " + juce::String(idx + 1), 50, 6, 60, 24, juce::Justification::centredLeft);
-        // motion section plate
-        g.setColour(card.withAlpha(0.55f));
+        g.setColour(card.withAlpha(0.6f)); // motion section plate
         g.fillRoundedRectangle(motionPlate.toFloat(), rCard);
+        g.setColour(textSecondary);
+        g.setFont(font(fsMeta, Weight::Bold));
+        g.drawText("EFFECTS", chainLabel, juce::Justification::centredLeft);
+        g.setColour(edgeSoft);
+        g.drawHorizontalLine(chainLabel.getCentreY(), (float) chainLabel.getX() + 48.f, (float) chainLabel.getRight());
     };
+    updateActive();
+}
+
+void PassColumn::updateActive()
+{
+    active = proc.getRaw(pid::pass(idx, pid::pOn)) >= 0.5f;
+    motion->setAlpha(active ? 1.f : 0.5f);
+    chainView->setAlpha(active ? 1.f : 0.5f);
+    repaint();
 }
 
 void PassColumn::resized()
@@ -408,19 +460,23 @@ void PassColumn::resized()
     mixBar->setBounds(head.removeFromRight(60).reduced(0, 4));
     head.removeFromRight(4);
     chip->setBounds(head.reduced(0, 4));
-    r.removeFromTop(5);
-    motionPlate = r.removeFromTop(162);
-    motion->setBounds(motionPlate.reduced(5, 5));
     r.removeFromTop(6);
-    // slot heights: empty slots are short; active cards share what is left (up to their ideal height)
-    int nActive = 0, emptyH = 0;
-    for (auto* s : slots) { if (s->isEmpty()) emptyH += s->getDesiredHeight(); else ++nActive; }
-    const int gaps = 4 * 3;
-    const int activeH = nActive == 0 ? 0 : juce::jlimit(62, 88, (r.getHeight() - emptyH - gaps) / nActive);
+    motionPlate = r.removeFromTop(154);
+    motion->setBounds(motionPlate.reduced(6, 5));
+    r.removeFromTop(6);
+    chainLabel = r.removeFromTop(12);
+    r.removeFromTop(3);
+    chainView->setBounds(r);
+    // stack the slots; the chain scrolls when cards don't fit (only then does the thin scrollbar appear)
+    int total = 0;
+    for (auto* s : slots) total += s->getDesiredHeight() + 4;
+    const bool scroll = total - 4 > r.getHeight();
+    const int w = r.getWidth() - (scroll ? 8 : 0);
+    chain.setSize(w, juce::jmax(total - 4, 1));
+    int y = 0;
     for (auto* s : slots) {
-        const int h = s->isEmpty() ? s->getDesiredHeight() : activeH;
-        s->setBounds(r.removeFromTop(h));
-        r.removeFromTop(4);
+        s->setBounds(0, y, w, s->getDesiredHeight());
+        y += s->getDesiredHeight() + 4;
     }
 }
 
@@ -537,7 +593,8 @@ public:
             const juce::String where = " (Slot " + juce::String(sl + 1) + ")";
             if (type > 0 && off >= pid::sP1 && off <= pid::sP4) {
                 const auto& info = getFxTypeInfo((FxType) type);
-                if (const char* pn = info.params[(size_t) (off - pid::sP1)].name) return juce::String(info.name) + " " + pn + where;
+                if (const char* pn = info.params[(size_t) (off - pid::sP1)].name)
+                    return (juce::String(pn) == info.name ? juce::String(pn) : juce::String(info.name) + " " + pn) + where;
             }
             if (off == pid::sMix) return (type > 0 ? juce::String(getFxTypeInfo((FxType) type).name) + " " : juce::String()) + "Mix" + where;
             if (off == pid::sMotion) return (type > 0 ? juce::String(getFxTypeInfo((FxType) type).name) + " " : juce::String()) + "Motion" + where;
@@ -663,7 +720,7 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
             auto* rate = c->make<ParamBar>(p, pid::lfo(l, pid::lRate), "Rate");
             auto* phase = c->make<ParamBar>(p, pid::lfo(l, pid::lPhase), "Phase");
             auto* view = c->make<TraceView>(p, [&p, l] { return p.getEngine().uiLfo[l].load(std::memory_order_relaxed); },
-                                            tok::modLfo, pid::lfo(l, pid::lShape));
+                                            tok::modLfo); // the shape is already shown by the combo above
             shape->setTooltip("LFO shape");
             div->setTooltip("Rate (synced to the host tempo)");
             retrig->setTooltip("Restart the LFO on every note");
@@ -798,39 +855,72 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
         };
     }
 
-    // ---- drag-to-modulate source strip (grouped by source type) ----
-    std::vector<ModChip*> chips;
-    for (int s = 1; s < (int) ModSrc::NumSources; ++s)
-        if (s < (int) ModSrc::Macro1 || s > (int) ModSrc::Macro8) chips.push_back(root->make<ModChip>(p, s));
+    // ---- drag-to-modulate source strip: one container per source family, numbered chips inside ----
+    struct Family { const char* name; int first, last; };
+    static const Family fams[] = { { "ENV", (int) ModSrc::Env1, (int) ModSrc::Env3 },
+                                   { "LFO", (int) ModSrc::Lfo1, (int) ModSrc::Lfo4 },
+                                   { "MOT", (int) ModSrc::Motion1, (int) ModSrc::Motion3 },
+                                   { "STP", (int) ModSrc::Step1, (int) ModSrc::Step2 } };
+    static const int singles[] = { (int) ModSrc::Velocity, (int) ModSrc::Note, (int) ModSrc::ModWheel,
+                                   (int) ModSrc::PitchBend, (int) ModSrc::Aftertouch, (int) ModSrc::Random };
+    struct FamUI { const Family* f; std::vector<ModChip*> chips; };
+    auto famUI = std::make_shared<std::vector<FamUI>>();
+    for (auto& f : fams) {
+        FamUI fu { &f, {} };
+        for (int s = f.first; s <= f.last; ++s) {
+            auto* c = root->make<ModChip>(p, s, juce::String(s - f.first + 1));
+            c->setTooltip(juce::String(modSrcNames()[(size_t) s]) + ": drag onto any knob to modulate it");
+            fu.chips.push_back(c);
+        }
+        famUI->push_back(fu);
+    }
+    std::vector<ModChip*> singleChips;
+    for (int s : singles) {
+        auto* c = root->make<ModChip>(p, s);
+        c->setTooltip(juce::String(modSrcNames()[(size_t) s]) + ": drag onto any knob to modulate it");
+        singleChips.push_back(c);
+    }
+    auto famRects = std::make_shared<std::vector<juce::Rectangle<int>>>();
+    auto hintRect = std::make_shared<juce::Rectangle<int>>();
     Page* rp = root.get();
-    root->painter = [rp](juce::Graphics& g) {
+    root->painter = [rp, famUI, famRects, hintRect](juce::Graphics& g) {
         paintPanel(g, rp->getLocalBounds());
+        // drag affordance: grip + label
+        const auto h = *hintRect;
         g.setColour(tok::textSecondary);
+        for (int i = 0; i < 3; ++i) for (int j = 0; j < 2; ++j)
+            g.fillEllipse((float) h.getX() + 2.f + (float) j * 4.f, (float) h.getCentreY() - 5.f + (float) i * 4.f, 2.f, 2.f);
         g.setFont(font(tok::fsMeta, tok::Weight::Bold));
-        g.drawText("DRAG TO MODULATE", 8 + 4 * 88 + 6, 6, 100, 24, juce::Justification::centredLeft);
+        g.drawText("DRAG", h.withTrimmedLeft(12), juce::Justification::centredLeft);
+        for (size_t i = 0; i < famRects->size() && i < famUI->size(); ++i) {
+            const auto r = (*famRects)[i].toFloat();
+            const auto col = modSrcColour((*famUI)[i].f->first);
+            g.setColour(col.withAlpha(0.08f));
+            g.fillRoundedRectangle(r, 3.f);
+            g.setColour(col.withAlpha(0.35f));
+            g.drawRoundedRectangle(r.reduced(0.5f), 3.f, 1.f);
+            g.setColour(col.brighter(0.1f));
+            g.setFont(fBadge());
+            g.drawText((*famUI)[i].f->name, r.withWidth(28.f).toNearestInt(), juce::Justification::centred);
+        }
     };
     root->layout = [=](juce::Rectangle<int> r) {
         r = r.reduced(8, 6);
         tabs->setBounds(r);
-        auto strip = r.removeFromTop(24).withTrimmedLeft(4 * 88 + 100);
-        // small gaps between colour groups make the source families scannable
-        auto group = [](int s) {
-            if (s <= (int) ModSrc::Env3) return 0;
-            if (s <= (int) ModSrc::Lfo4) return 1;
-            if (s <= (int) ModSrc::Motion3) return 2;
-            if (s >= (int) ModSrc::Step1) return 4;
-            return 3;
-        };
-        int groups = 0;
-        for (size_t i = 1; i < chips.size(); ++i) groups += group(chips[i]->getSource()) != group(chips[i - 1]->getSource());
-        const int gapW = 6;
-        const float cw = (float) (strip.getWidth() - groups * gapW) / (float) chips.size();
-        float x = (float) strip.getX();
-        for (size_t i = 0; i < chips.size(); ++i) {
-            if (i > 0 && group(chips[i]->getSource()) != group(chips[i - 1]->getSource())) x += (float) gapW;
-            chips[i]->setBounds((int) x + 1, strip.getY() + 2, (int) cw - 2, 20);
-            x += cw;
+        auto strip = r.removeFromTop(24).withTrimmedLeft(4 * 88 + 6);
+        *hintRect = strip.removeFromLeft(46);
+        const int chipW = 17, gap = 6;
+        famRects->clear();
+        int x = strip.getX();
+        for (auto& fu : *famUI) {
+            const int w = 28 + (int) fu.chips.size() * chipW + 3;
+            famRects->push_back({ x, strip.getY() + 1, w, 22 });
+            int cx = x + 28;
+            for (auto* c : fu.chips) { c->setBounds(cx, strip.getY() + 3, chipW - 2, 18); cx += chipW; }
+            x += w + gap;
         }
+        const int sw = juce::jmax(24, (strip.getRight() - x) / (int) singleChips.size());
+        for (auto* c : singleChips) { c->setBounds(x, strip.getY() + 3, sw - 3, 18); x += sw; }
     };
     return root;
 }
@@ -859,17 +949,30 @@ std::unique_ptr<Page> makeOutputPanel(NeuroforgeProcessor& p)
     kb->setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId, cAccent.withAlpha(0.7f));
     kb->setScrollButtonsVisible(false);
     kb->setWantsKeyboardFocus(false);
+    auto* keysBtn = root->make<juce::TextButton>("KEYS");
+    setStyle(*keysBtn, "pill");
+    keysBtn->getProperties().set("nfColour", (juce::int64) tok::textLabel.getARGB());
+    keysBtn->setTooltip("Show / hide the on-screen keyboard");
+    keysBtn->setToggleState(true, juce::dontSendNotification);
     Page* rp = root.get();
+    keysBtn->onClick = [keysBtn, kb, rp] {
+        keysBtn->setToggleState(!keysBtn->getToggleState(), juce::dontSendNotification);
+        kb->setVisible(keysBtn->getToggleState());
+        rp->resized();
+    };
     root->painter = [rp](juce::Graphics& g) { paintPanel(g, rp->getLocalBounds(), "OUTPUT"); };
     root->layout = [=](juce::Rectangle<int> r) {
-        r = r.reduced(8, 0).withTrimmedTop(22).withTrimmedBottom(8);
+        keysBtn->setBounds(r.getRight() - 52, 5, 44, 16);
+        r = r.reduced(8, 0).withTrimmedTop(24).withTrimmedBottom(8);
         guard->setBounds(r.removeFromTop(24).removeFromLeft(110));
         placeCells(ks, r.removeFromTop(160), 3, 78, 2);
         r.removeFromTop(6);
-        scope->setBounds(r.removeFromTop(96));
+        scope->setBounds(r.removeFromTop(92));
         r.removeFromTop(6);
-        kb->setBounds(r.removeFromBottom(64));
-        r.removeFromBottom(6);
+        if (kb->isVisible()) {
+            kb->setBounds(r.removeFromBottom(64));
+            r.removeFromBottom(6);
+        }
         spec->setBounds(r);
     };
     return root;
@@ -989,26 +1092,29 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
         paintPanel(g, getLocalBounds());
         if (logoImage().isValid())
             g.drawImageWithin(logoImage(), 12, 2, 158, getHeight() - 4, juce::RectanglePlacement::centred);
+        g.setColour(tok::edgeSoft.brighter(0.2f)); // group separators
+        for (int x : { 488, 1018 }) g.drawVerticalLine(x, 8.f, (float) getHeight() - 8.f);
     };
     layout = [=](juce::Rectangle<int>) {
         const int y1 = 6, h1 = 22;
-        prev->setBounds(176, y1, 22, h1);
-        presetBtn->setBounds(200, y1, 150, h1);
+        // preset management | generation | utility  (group separators are painted at kSep1 / kSep2)
+        prev->setBounds(178, y1, 22, h1);
+        presetBtn->setBounds(202, y1, 148, h1);
         next->setBounds(352, y1, 22, h1);
-        saveBtn->setBounds(378, y1, 46, h1);
-        initBtn->setBounds(428, y1, 46, h1);
-        archetype->setBounds(484, y1, 104, h1);
-        forge->setBounds(592, y1, 74, 34);
-        mutate->setBounds(690, y1, 70, h1);
-        undo->setBounds(764, y1, 56, h1);
-        mutAmt->setBounds(690, 30, 120, 12);
-        capture->setBounds(830, y1, 76, h1);
-        nextGen->setBounds(910, y1, 80, h1);
-        capSet->setBounds(994, y1, 26, h1);
-        status->setBounds(830, 29, 190, 14);
-        quality->setBounds(1040, 12, 58, 22);
-        master->setBounds(1108, 2, 44, 42);
-        meter->setBounds(1166, 14, 84, 18);
+        saveBtn->setBounds(380, y1, 46, h1);
+        initBtn->setBounds(430, y1, 46, h1);
+        archetype->setBounds(500, y1, 98, h1);
+        forge->setBounds(604, 6, 76, 34);
+        mutate->setBounds(692, y1, 70, h1);
+        mutAmt->setBounds(692, 30, 120, 12);
+        capture->setBounds(822, y1, 74, h1);
+        nextGen->setBounds(900, y1, 80, h1);
+        capSet->setBounds(984, y1, 24, h1);
+        status->setBounds(822, 29, 186, 14);
+        undo->setBounds(1030, y1, 56, h1);
+        quality->setBounds(1092, y1, 56, h1);
+        master->setBounds(1152, 1, 40, 44);
+        meter->setBounds(1198, 8, 60, 30);
     };
 }
 

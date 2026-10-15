@@ -261,9 +261,18 @@ void ScopeView::paint(juce::Graphics& g)
 {
     auto r = getLocalBounds();
     paintDisplayBg(g, r);
-    auto in = r.toFloat().reduced(4.f);
-    g.setColour(cEdge.withAlpha(0.6f));
+    auto in = r.toFloat().reduced(5.f);
+    paintGrid(g, in, 4, 8);
+    g.setColour(tok::edge);
     g.drawHorizontalLine((int) in.getCentreY(), in.getX(), in.getRight());
+    float peak = 0.f;
+    for (float v : buf) peak = juce::jmax(peak, std::abs(v));
+    if (peak < 1.0e-4f) { // deliberate idle state
+        g.setColour(tok::textSecondary);
+        g.setFont(font(tok::fsMeta, tok::Weight::Bold));
+        g.drawText("NO SIGNAL", r, juce::Justification::centred);
+        return;
+    }
     // rising zero crossing trigger in the first half
     int start = 0;
     for (int i = 1; i < 1024; ++i) if (buf[(size_t) i - 1] <= 0.f && buf[(size_t) i] > 0.f) { start = i; break; }
@@ -275,8 +284,13 @@ void ScopeView::paint(juce::Graphics& g)
         const float y = in.getCentreY() - v * in.getHeight() * 0.5f;
         if (i == 0) p.startNewSubPath(x, y); else p.lineTo(x, y);
     }
+    g.setColour(cAccent.withAlpha(0.15f)); // faint phosphor halo
+    g.strokePath(p, juce::PathStrokeType(3.5f));
     g.setColour(cAccent);
-    g.strokePath(p, juce::PathStrokeType(1.3f));
+    g.strokePath(p, juce::PathStrokeType(1.4f));
+    g.setColour(tok::textSecondary);
+    g.setFont(fMeta());
+    g.drawText("SCOPE", r.reduced(7, 3), juce::Justification::topLeft);
 }
 
 //==============================================================================================
@@ -312,7 +326,24 @@ void SpectrumView::paint(juce::Graphics& g)
 {
     auto r = getLocalBounds();
     paintDisplayBg(g, r);
-    auto in = r.toFloat().reduced(4.f);
+    auto in = r.toFloat().reduced(5.f).withTrimmedBottom(10.f); // bottom strip holds the frequency labels
+    // grid: dB lines (the display spans -80..0 dB) and decade frequency lines
+    g.setFont(fMeta());
+    for (int db : { -60, -40, -20 }) {
+        const float y = in.getBottom() - in.getHeight() * (float) (db + 80) / 80.f;
+        g.setColour(tok::edgeSoft);
+        g.drawHorizontalLine((int) y, in.getX(), in.getRight());
+        g.setColour(tok::textSecondary.withAlpha(0.8f));
+        g.drawText(juce::String(db), (int) in.getRight() - 24, (int) y - 11, 22, 10, juce::Justification::right);
+    }
+    for (float f : { 50.f, 100.f, 500.f, 1000.f, 5000.f, 10000.f }) {
+        const float x = in.getX() + in.getWidth() * std::log(f / 25.f) / std::log(18000.f / 25.f);
+        g.setColour(tok::edgeSoft);
+        g.drawVerticalLine((int) x, in.getY(), in.getBottom());
+        g.setColour(tok::textSecondary);
+        g.drawText(f >= 1000.f ? juce::String((int) (f / 1000.f)) + "k" : juce::String((int) f), (int) x - 12, (int) in.getBottom() + 1, 24, 10,
+                   juce::Justification::centred);
+    }
     juce::Path p;
     for (int b = 0; b < kBars; ++b) {
         const float x = in.getX() + in.getWidth() * (float) b / (float) (kBars - 1);
@@ -323,17 +354,12 @@ void SpectrumView::paint(juce::Graphics& g)
     fill.lineTo(in.getRight(), in.getBottom());
     fill.lineTo(in.getX(), in.getBottom());
     fill.closeSubPath();
-    g.setGradientFill(juce::ColourGradient(cAccent.withAlpha(0.35f), 0.f, in.getY(), cAccent.withAlpha(0.02f), 0.f, in.getBottom(), false));
+    g.setGradientFill(juce::ColourGradient(cAccent.withAlpha(0.28f), 0.f, in.getY(), cAccent.withAlpha(0.02f), 0.f, in.getBottom(), false));
     g.fillPath(fill);
-    g.setColour(cAccent);
-    g.strokePath(p, juce::PathStrokeType(1.3f));
-    g.setColour(cDim.withAlpha(0.7f));
-    g.setFont(font(9.f));
-    for (float f : { 50.f, 100.f, 500.f, 1000.f, 5000.f, 10000.f }) {
-        const float x = in.getX() + in.getWidth() * std::log(f / 25.f) / std::log(18000.f / 25.f);
-        g.drawVerticalLine((int) x, in.getY(), in.getBottom());
-        g.drawText(f >= 1000.f ? juce::String((int) (f / 1000.f)) + "k" : juce::String((int) f), (int) x + 2, (int) in.getBottom() - 11, 24, 10, juce::Justification::left);
-    }
+    g.setColour(cAccent.withAlpha(0.95f));
+    g.strokePath(p, juce::PathStrokeType(1.5f));
+    g.setColour(tok::textSecondary);
+    g.drawText("SPECTRUM", r.reduced(7, 3), juce::Justification::topLeft);
 }
 
 //==============================================================================================
@@ -341,12 +367,32 @@ void Meter::tick()
 {
     if (!isShowing()) return;
     const float nl = proc.peakL.load(std::memory_order_relaxed), nr = proc.peakR.load(std::memory_order_relaxed);
-    if (std::abs(nl - l) > 0.002f || std::abs(nr - r) > 0.002f) { l = nl; r = nr; repaint(); }
+    const float pk = juce::jmax(nl, nr);
+    const auto now = juce::Time::getMillisecondCounter();
+    if (pk >= holdPeak || now - holdTime > 1500) { holdPeak = pk; holdTime = now; } // 1.5 s peak hold
+    if (pk >= 1.0f) clipped = true;                                                 // latches until clicked
+    if (std::abs(nl - l) > 0.002f || std::abs(nr - r) > 0.002f || std::abs(pk - lastShown) > 0.002f) { l = nl; r = nr; lastShown = pk; repaint(); }
 }
+
+void Meter::mouseDown(const juce::MouseEvent&) { clipped = false; holdPeak = 0.f; repaint(); }
 
 void Meter::paint(juce::Graphics& g)
 {
     auto b = getLocalBounds().toFloat();
+    // top line: held peak in dBFS + clip indicator
+    auto top = b.removeFromTop(13.f);
+    auto led = top.removeFromRight(28.f);
+    const float hdb = 20.f * std::log10(holdPeak + 1e-6f);
+    g.setFont(fValue());
+    g.setColour(hdb > -0.1f ? cWarn : tok::textPrimary);
+    g.drawText(holdPeak < 1.0e-4f ? juce::String::fromUTF8("-\xe2\x88\x9e dB") : juce::String(hdb, 1) + " dB", top.toNearestInt(),
+               juce::Justification::centredLeft);
+    g.setColour(clipped ? cWarn : tok::track);
+    g.fillRoundedRectangle(led.reduced(1.f, 1.5f), 2.f);
+    g.setColour(clipped ? juce::Colours::black : tok::textSecondary);
+    g.setFont(fBadge());
+    g.drawText("CLIP", led.toNearestInt(), juce::Justification::centred);
+    b.removeFromTop(3.f);
     auto draw = [&](juce::Rectangle<float> rc, float peak) {
         g.setColour(cTrack);
         g.fillRoundedRectangle(rc, 2.f);
@@ -354,10 +400,13 @@ void Meter::paint(juce::Graphics& g)
         const float u = juce::jlimit(0.f, 1.f, (db + 60.f) / 60.f);
         g.setColour(db > -1.f ? cWarn : (db > -9.f ? juce::Colour(0xffffd23c) : cAccent));
         g.fillRoundedRectangle(rc.withWidth(rc.getWidth() * u), 2.f);
+        const float hu = juce::jlimit(0.f, 1.f, (hdb + 60.f) / 60.f); // peak-hold tick
+        g.setColour(tok::textPrimary);
+        g.fillRect(rc.getX() + rc.getWidth() * hu - 1.f, rc.getY(), 1.5f, rc.getHeight());
     };
-    const float h = (b.getHeight() - 3.f) * 0.5f;
+    const float h = (b.getHeight() - 2.f) * 0.5f;
     draw(b.withHeight(h), l);
-    draw(b.withTrimmedTop(h + 3.f), r);
+    draw(b.withTrimmedTop(h + 2.f), r);
 }
 
 //==============================================================================================

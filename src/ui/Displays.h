@@ -88,14 +88,17 @@ private:
     std::array<float, kBars> bars {};
 };
 
-class Meter : public juce::Component, public Tickable {
+class Meter : public juce::Component, public juce::SettableTooltipClient, public Tickable {
 public:
-    explicit Meter(NeuroforgeProcessor& p) : proc(p) {}
+    explicit Meter(NeuroforgeProcessor& p) : proc(p) { setTooltip("Output sample peak (1.5 s hold). CLIP latches at 0 dBFS; click to reset."); }
     void paint(juce::Graphics&) override;
     void tick() override;
+    void mouseDown(const juce::MouseEvent&) override;
 private:
     NeuroforgeProcessor& proc;
-    float l = 0.f, r = 0.f;
+    float l = 0.f, r = 0.f, holdPeak = 0.f, lastShown = 0.f;
+    juce::uint32 holdTime = 0;
+    bool clipped = false;
 };
 
 //==============================================================================================

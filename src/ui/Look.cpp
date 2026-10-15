@@ -157,7 +157,7 @@ void LookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& b, bool ov
     } else if (style == "ghost") c = over ? textLabel : textSecondary;
     else if (style == "icon") c = over ? danger : textSecondary;
     else c = on ? juce::Colours::black : b.findColour(juce::TextButton::textColourOffId);
-    if (!enabled) c = textDisabled;
+    if (!enabled) c = textSecondary.withAlpha(0.55f); // readable, clearly inactive
     g.setFont(style == "tab" || style == "pill" ? font(fsButton - 0.5f, Weight::Bold) : getTextButtonFont(b, b.getHeight()));
     g.setColour(c);
     g.drawFittedText(b.getButtonText(), b.getLocalBounds().reduced(4, 0), juce::Justification::centred, 1, 0.9f);

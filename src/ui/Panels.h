@@ -39,7 +39,7 @@ private:
 class SlotStrip : public Page {
 public:
     SlotStrip(NeuroforgeProcessor& p, int slotIndex);
-    int getDesiredHeight() const { return off ? 24 : 88; }
+    int getDesiredHeight() const;
     bool isEmpty() const { return off; }
     std::function<void()> onHeightChange;
     void resized() override;
@@ -52,7 +52,7 @@ private:
     juce::TextButton *addBtn = nullptr, *remBtn = nullptr;
     Knob* pk[4] {};
     Knob *mix = nullptr, *mot = nullptr;
-    int numUsed = 0, sepX = -1;
+    int numUsed = 0;
 };
 
 class MotionEditor : public Page {
@@ -74,13 +74,18 @@ public:
     PassColumn(NeuroforgeProcessor& p, int passIndex);
     void resized() override;
 private:
+    void updateActive();
+    NeuroforgeProcessor& proc;
     int idx;
+    bool active = true;
     ParamToggle* on = nullptr;
     ModChip* chip = nullptr;
     ParamBar* mixBar = nullptr;
     MotionEditor* motion = nullptr;
+    juce::Viewport* chainView = nullptr;
+    Page chain;                       // scrollable effect chain
     SlotStrip* slots[4] {};
-    juce::Rectangle<int> motionPlate;
+    juce::Rectangle<int> motionPlate, chainLabel;
 };
 
 std::unique_ptr<Page> makeSourcePanel(NeuroforgeProcessor&);

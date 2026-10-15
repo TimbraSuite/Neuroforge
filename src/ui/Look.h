@@ -35,7 +35,7 @@ inline const juce::Colour focus     { 0xffe6e9ee }; // keyboard focus ring
 inline const juce::Colour modEnv    { 0xffff5fa2 }; // envelopes: pink
 inline const juce::Colour modLfo    { 0xff3cf0ff }; // LFOs: cyan
 inline const juce::Colour modMotion { 0xffb48cff }; // pass Motion: purple
-inline const juce::Colour modMacro  { 0xffb4ff3c }; // macros: acid green
+inline const juce::Colour modMacro  { 0xffdfe6f0 }; // macros: ice white (kept apart from the green value arcs)
 inline const juce::Colour modStep   { 0xffffb23c }; // curve steppers: amber
 inline const juce::Colour modOther  { 0xff9aa6b4 }; // velocity, note, wheel, ...
 
@@ -170,6 +170,11 @@ inline void paintPanel(juce::Graphics& g, juce::Rectangle<int> r, const juce::St
         g.setColour(tok::textLabel);
         g.setFont(fSection());
         g.drawText(title, r.getX() + 14, r.getY() + 4, r.getWidth() - 28, 16, juce::Justification::left);
+        // machined vent slots after the title: a small industrial detail
+        const float vx = (float) r.getX() + 20.f + fSection().getStringWidthFloat(title), vy = (float) r.getY() + 8.f;
+        g.setColour(tok::edge.brighter(0.15f));
+        for (int i = 0; i < 4; ++i)
+            g.drawLine(vx + (float) i * 5.f, vy + 8.f, vx + (float) i * 5.f + 3.f, vy, 1.2f);
     }
 }
 

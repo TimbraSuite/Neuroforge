@@ -18,12 +18,17 @@ const char* modSrcShort(int src);
 juce::Colour modSrcColour(int src);
 
 //==============================================================================================
+// The modulation source chip currently under the mouse (0 = none); knobs it targets highlight.
+int& hoveredModSource();
+
 class Knob : public juce::Component, public juce::SettableTooltipClient, public juce::DragAndDropTarget, public Tickable {
 public:
     Knob(NeuroforgeProcessor& p, int paramId, juce::String label = {});
     void setLabel(const juce::String& s) { label = s; repaint(); }
     void setFormatter(std::function<juce::String(float)> f) { fmt = std::move(f); repaint(); }
     void setBipolar(bool b) { bipolar = b; repaint(); }
+    // Inline layout: small circle on the left, "label  value" and badges to its right (compact footers).
+    void setInline(bool b) { inlineMode = b; repaint(); }
     int getParamId() const { return pid; }
     float getValue() const { return value; }
 
@@ -57,6 +62,10 @@ private:
     bool hasBadgeRow() const;
     juce::Rectangle<float> badgeArea() const;
     juce::Rectangle<float> badgeRect(int i) const;
+    int badgeSlots() const;
+    int shownBadges() const;
+    bool hasOverflow() const;
+    void showRoutesMenu();
     int badgeAt(juce::Point<float>) const;
     NeuroforgeProcessor& proc;
     int pid;
@@ -66,7 +75,9 @@ private:
     float value = 0.f, defNorm = 0.f, modOff = 0.f, dragStartVal = 0.f;
     int dragStartY = 0, routeCount = 0, altRow = -1, hoverBadge = -1, badgeDrag = -1;
     std::vector<NfModRoute> routes;   // modulation routes targeting this knob (refreshed in tick)
-    bool overCircle = false;
+    bool overCircle = false, inlineMode = false;
+    int dragHintSrc = 0, lastHoverSrc = 0;   // drag-to-modulate target hint / hovered source chip
+    float flash = 0.f;                       // fades after a route is assigned
     bool bipolar = false, hover = false, dragging = false, dropHighlight = false, modulatable = false, discrete = false;
 };
 
@@ -93,7 +104,7 @@ private:
 
 //==============================================================================================
 // Horizontal value bar (relative drag). Used for rates, mod amounts, mutate amount.
-class Bar : public juce::Component {
+class Bar : public juce::Component, public juce::SettableTooltipClient {
 public:
     float value = 0.f, defaultValue = 0.f;
     bool bipolar = false;
@@ -126,6 +137,8 @@ public:
     int getSource() const { return src; }
     void paint(juce::Graphics&) override;
     void mouseDrag(const juce::MouseEvent&) override;
+    void mouseEnter(const juce::MouseEvent&) override { hoveredModSource() = src; }
+    void mouseExit(const juce::MouseEvent&) override { if (hoveredModSource() == src) hoveredModSource() = 0; }
     void tick() override;
 private:
     NeuroforgeProcessor& proc;
