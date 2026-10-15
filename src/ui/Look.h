@@ -5,23 +5,92 @@
 
 namespace nfui {
 
-inline const juce::Colour cBg(0xff0d0f12), cPanel(0xff15181d), cPanel2(0xff1c2027), cEdge(0xff2a2f38),
-    cText(0xffd9dde3), cDim(0xff7d8794), cAccent(0xffb4ff3c), cCyan(0xff3cf0ff), cWarn(0xffff5470),
-    cTrack(0xff2b3038);
+//==============================================================================================
+// Design tokens. Every colour, type size and spacing value used by the UI comes from here.
+//==============================================================================================
+namespace tok {
+// ---- surfaces (dark graphite, darkest to lightest) ----
+inline const juce::Colour bg       { 0xff0c0e11 };  // window background
+inline const juce::Colour panel    { 0xff14171c };  // main panels
+inline const juce::Colour card     { 0xff1a1e24 };  // FX cards, pass columns, source cards
+inline const juce::Colour raised   { 0xff20252c };  // buttons, combos, inputs
+inline const juce::Colour well     { 0xff0a0c0f };  // graphs and displays
+inline const juce::Colour edge     { 0xff2c323b };  // control outlines
+inline const juce::Colour edgeSoft { 0xff23282f };  // subtle separators
+inline const juce::Colour track    { 0xff2a2f37 };  // inactive knob/slider track
 
-inline juce::Font font(float h, bool bold = false)
-{
-    return juce::Font(juce::FontOptions(h, bold ? juce::Font::bold : juce::Font::plain));
-}
+// ---- text ----
+inline const juce::Colour textPrimary   { 0xffe6e9ee }; // titles, values
+inline const juce::Colour textLabel     { 0xffa9b2be }; // parameter labels
+inline const juce::Colour textSecondary { 0xff7d8794 }; // metadata, inactive tabs
+inline const juce::Colour textDisabled  { 0xff4b535e };
+
+// ---- accents ----
+inline const juce::Colour accent    { 0xffb4ff3c }; // acid green: values, active state, primary actions
+inline const juce::Colour accentDim { 0xff6f9a2c }; // values of inactive/disabled controls
+inline const juce::Colour danger    { 0xffff5470 };
+inline const juce::Colour focus     { 0xffe6e9ee }; // keyboard focus ring
+
+// ---- modulation source colours ----
+inline const juce::Colour modEnv    { 0xffff5fa2 }; // envelopes: pink
+inline const juce::Colour modLfo    { 0xff3cf0ff }; // LFOs: cyan
+inline const juce::Colour modMotion { 0xffb48cff }; // pass Motion: purple
+inline const juce::Colour modMacro  { 0xffb4ff3c }; // macros: acid green
+inline const juce::Colour modStep   { 0xffffb23c }; // curve steppers: amber
+inline const juce::Colour modOther  { 0xff9aa6b4 }; // velocity, note, wheel, ...
+
+// ---- type scale (font height in px at 100% UI scale) ----
+constexpr float fsLogo    = 16.f;
+constexpr float fsSection = 14.f;  // panel and pass headings
+constexpr float fsModule  = 13.f;  // FX / source card titles
+constexpr float fsButton  = 12.5f;
+constexpr float fsLabel   = 12.f;  // parameter labels
+constexpr float fsValue   = 12.f;  // parameter values (tabular digits)
+constexpr float fsMeta    = 11.f;  // secondary information
+constexpr float fsBadge   = 10.f;  // modulation badges, chips
+
+enum class Weight { Regular, Medium, SemiBold, Bold };
+
+// ---- spacing / shape ----
+constexpr int sp1 = 2, sp2 = 4, sp3 = 6, sp4 = 8, sp5 = 12;
+constexpr float rCard = 5.f, rControl = 4.f;
+} // namespace tok
+
+// Legacy names, kept so older call sites read naturally; they map onto the tokens.
+inline const juce::Colour cBg = tok::bg, cPanel = tok::panel, cPanel2 = tok::raised, cEdge = tok::edge,
+    cText = tok::textPrimary, cDim = tok::textSecondary, cAccent = tok::accent, cCyan = tok::modLfo,
+    cWarn = tok::danger, cTrack = tok::track;
+
+// Embedded Roboto Condensed (assets/fonts). Its digits are tabular, so values don't jitter.
+juce::Typeface::Ptr typeface(tok::Weight w);
+juce::Font font(float height, tok::Weight w);
+inline juce::Font font(float height, bool bold = false) { return font(height, bold ? tok::Weight::SemiBold : tok::Weight::Medium); }
+
+// Named type styles
+inline juce::Font fSection() { return font(tok::fsSection, tok::Weight::Bold); }
+inline juce::Font fModule()  { return font(tok::fsModule, tok::Weight::SemiBold); }
+inline juce::Font fButton()  { return font(tok::fsButton, tok::Weight::SemiBold); }
+inline juce::Font fLabel()   { return font(tok::fsLabel, tok::Weight::Medium); }
+inline juce::Font fValue()   { return font(tok::fsValue, tok::Weight::SemiBold); }
+inline juce::Font fMeta()    { return font(tok::fsMeta, tok::Weight::Regular); }
+inline juce::Font fBadge()   { return font(tok::fsBadge, tok::Weight::Bold); }
+
+// Component properties that select a style variant in the LookAndFeel.
+//   TextButton: "nfStyle" = "tab" (category tab), "pill" (source selector, colour in "nfColour"),
+//                           "ghost" (low-emphasis, e.g. empty FX slot / remove), default = standard
+//   ComboBox:   "nfStyle" = "title" (borderless card title)
+inline void setStyle(juce::Component& c, const char* style) { c.getProperties().set("nfStyle", style); }
+inline juce::String styleOf(const juce::Component& c) { return c.getProperties()["nfStyle"].toString(); }
 
 class LookAndFeel : public juce::LookAndFeel_V4 {
 public:
     LookAndFeel();
+    juce::Typeface::Ptr getTypefaceForFont(const juce::Font&) override;
     void drawComboBox(juce::Graphics&, int w, int h, bool down, int bx, int by, int bw, int bh, juce::ComboBox&) override;
     void positionComboBoxText(juce::ComboBox&, juce::Label&) override;
-    juce::Font getComboBoxFont(juce::ComboBox&) override { return font(12.f); }
-    juce::Font getPopupMenuFont() override { return font(13.f); }
-    juce::Font getTextButtonFont(juce::TextButton&, int) override { return font(12.f, true); }
+    juce::Font getComboBoxFont(juce::ComboBox& b) override { return styleOf(b) == "title" ? fModule() : fLabel(); }
+    juce::Font getPopupMenuFont() override { return font(13.f, tok::Weight::Medium); }
+    juce::Font getTextButtonFont(juce::TextButton&, int) override { return fButton(); }
     void drawButtonBackground(juce::Graphics&, juce::Button&, const juce::Colour&, bool over, bool down) override;
     void drawButtonText(juce::Graphics&, juce::TextButton&, bool over, bool down) override;
     void drawToggleButton(juce::Graphics&, juce::ToggleButton&, bool over, bool down) override;
@@ -29,6 +98,8 @@ public:
     void drawScrollbar(juce::Graphics&, juce::ScrollBar&, int x, int y, int w, int h, bool vertical, int thumbStart,
                        int thumbSize, bool over, bool down) override;
     int getDefaultScrollbarWidth() override { return 8; }
+    juce::Font getAlertWindowMessageFont() override { return fLabel(); }
+    juce::Font getAlertWindowTitleFont() override { return fModule(); }
 };
 
 // ---- Theme assets (embedded) -----------------------------------------------------------------
@@ -96,9 +167,9 @@ inline void paintPanel(juce::Graphics& g, juce::Rectangle<int> r, const juce::St
         paintScrew(g, { rf.getRight() - in, rf.getBottom() - in }, rad, a + 0.6f);
     }
     if (title.isNotEmpty()) {
-        g.setColour(cDim);
-        g.setFont(font(10.5f, true));
-        g.drawText(title, r.getX() + 14, r.getY() + 4, r.getWidth() - 28, 14, juce::Justification::left);
+        g.setColour(tok::textLabel);
+        g.setFont(fSection());
+        g.drawText(title, r.getX() + 14, r.getY() + 4, r.getWidth() - 28, 16, juce::Justification::left);
     }
 }
 

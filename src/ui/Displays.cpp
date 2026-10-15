@@ -7,10 +7,18 @@ namespace nfui {
 
 static void paintDisplayBg(juce::Graphics& g, juce::Rectangle<int> r)
 {
-    g.setColour(juce::Colour(0xff0a0c0f));
-    g.fillRoundedRectangle(r.toFloat(), 4.f);
-    g.setColour(cEdge);
-    g.drawRoundedRectangle(r.toFloat().reduced(0.5f), 4.f, 1.f);
+    g.setColour(tok::well);
+    g.fillRoundedRectangle(r.toFloat(), tok::rControl);
+    g.setColour(tok::edgeSoft);
+    g.drawRoundedRectangle(r.toFloat().reduced(0.5f), tok::rControl, 1.f);
+}
+
+// Subtle reference grid for graphs: h horizontal divisions, v vertical divisions.
+static void paintGrid(juce::Graphics& g, juce::Rectangle<float> in, int h, int v)
+{
+    g.setColour(tok::edgeSoft.withAlpha(0.8f));
+    for (int i = 1; i < h; ++i) g.drawHorizontalLine((int) (in.getY() + in.getHeight() * (float) i / (float) h), in.getX(), in.getRight());
+    for (int i = 1; i < v; ++i) g.drawVerticalLine((int) (in.getX() + in.getWidth() * (float) i / (float) v), in.getY(), in.getBottom());
 }
 
 //==============================================================================================
@@ -36,12 +44,11 @@ void WavetableView::paint(juce::Graphics& g)
     const int nb = tables::getNumBuiltIn();
     std::shared_ptr<const WavetableBank> bank = ti < nb ? tables::getBuiltIn(ti) : proc.getEngine().getCapture(ti - nb);
     auto inner = r.reduced(6, 8).toFloat();
-    g.setColour(cEdge.withAlpha(0.6f));
-    g.drawHorizontalLine((int) inner.getCentreY(), inner.getX(), inner.getRight());
+    paintGrid(g, inner, 4, 4);
     if (!bank) {
-        g.setColour(cDim);
-        g.setFont(font(12.f));
-        g.drawText("empty capture slot - press CAPTURE", r, juce::Justification::centred);
+        g.setColour(tok::textSecondary);
+        g.setFont(fLabel());
+        g.drawText("Empty capture slot: press CAPTURE", r, juce::Justification::centred);
         return;
     }
     const int nf_ = bank->getNumFrames();
@@ -77,8 +84,8 @@ void WavetableView::paint(juce::Graphics& g)
     g.strokePath(path, juce::PathStrokeType(4.f));
     g.setColour(cAccent);
     g.strokePath(path, juce::PathStrokeType(1.6f));
-    g.setColour(cDim);
-    g.setFont(font(10.f));
+    g.setColour(tok::textSecondary);
+    g.setFont(fMeta());
     g.drawText(juce::String(bank->getName()) + "   frame " + juce::String(fp + 1.f, 1) + " / " + juce::String(nf_),
                r.reduced(8, 3), juce::Justification::topLeft);
 }
@@ -104,6 +111,7 @@ void EnvView::paint(juce::Graphics& g)
     auto r = getLocalBounds();
     paintDisplayBg(g, r);
     auto in = r.toFloat().reduced(6.f, 6.f);
+    paintGrid(g, in, 4, 1);
     const float wA = 0.08f + 0.92f * last[pid::eA], wD = 0.08f + 0.92f * last[pid::eD], wH = 0.3f,
                 wR = 0.08f + 0.92f * last[pid::eR];
     const float S = last[pid::eS], tot = wA + wD + wH + wR;
@@ -115,19 +123,22 @@ void EnvView::paint(juce::Graphics& g)
     p.quadraticTo(X(wA + wD * 0.25f), Y(S + (1.f - S) * 0.35f), X(wA + wD), Y(S));
     p.lineTo(X(wA + wD + wH), Y(S));
     p.quadraticTo(X(wA + wD + wH + wR * 0.25f), Y(S * 0.35f), X(tot), Y(0));
+    // segment boundaries: attack | decay | sustain | release
+    g.setColour(tok::edge.withAlpha(0.7f));
+    for (float u : { wA, wA + wD, wA + wD + wH }) g.drawVerticalLine((int) X(u), in.getY(), in.getBottom());
     auto fill = p;
     fill.lineTo(X(tot), Y(0));
     fill.closeSubPath();
-    g.setColour(juce::Colour(0xffffb23c).withAlpha(0.10f));
+    g.setColour(tok::modEnv.withAlpha(0.12f));
     g.fillPath(fill);
-    g.setColour(juce::Colour(0xffffb23c));
-    g.strokePath(p, juce::PathStrokeType(1.6f));
-    g.setColour(cCyan.withAlpha(0.8f));
+    g.setColour(tok::modEnv);
+    g.strokePath(p, juce::PathStrokeType(1.8f));
+    g.setColour(tok::textPrimary.withAlpha(0.8f)); // live level
     g.fillRect(r.getRight() - 5.f, in.getBottom() - in.getHeight() * juce::jlimit(0.f, 1.f, level), 3.f, in.getHeight() * juce::jlimit(0.f, 1.f, level));
     if (last[pid::eLoop] >= 0.5f) {
-        g.setColour(cAccent);
-        g.setFont(font(9.f, true));
-        g.drawText("LOOP", r.reduced(6, 3), juce::Justification::topRight);
+        g.setColour(tok::modEnv);
+        g.setFont(fBadge());
+        g.drawText("LOOP", r.reduced(8, 3), juce::Justification::topRight);
     }
 }
 
@@ -148,8 +159,7 @@ void TraceView::paint(juce::Graphics& g)
     auto r = getLocalBounds();
     paintDisplayBg(g, r);
     auto in = r.toFloat().reduced(4.f, 4.f);
-    g.setColour(cEdge.withAlpha(0.6f));
-    g.drawHorizontalLine((int) in.getCentreY(), in.getX(), in.getRight());
+    paintGrid(g, in, 2, 4);
     juce::Path p;
     for (int i = 0; i < N; ++i) {
         const float v = juce::jlimit(-1.f, 1.f, hist[(size_t) ((head + i) % N)]);
@@ -157,12 +167,12 @@ void TraceView::paint(juce::Graphics& g)
         const float y = in.getCentreY() - v * in.getHeight() * 0.5f;
         if (i == 0) p.startNewSubPath(x, y); else p.lineTo(x, y);
     }
-    g.setColour(colour.withAlpha(0.9f));
-    g.strokePath(p, juce::PathStrokeType(1.4f));
+    g.setColour(colour.withAlpha(0.95f));
+    g.strokePath(p, juce::PathStrokeType(1.6f));
     if (shapeParam >= 0) {
         const int si = (int) normToReal(shapeParam, proc.getRaw(shapeParam));
-        g.setColour(cDim);
-        g.setFont(font(9.f));
+        g.setColour(tok::textSecondary);
+        g.setFont(fMeta());
         g.drawText(juce::String(lfoShapeNames()[(size_t) juce::jlimit(0, (int) lfoShapeNames().size() - 1, si)]), r.reduced(5, 2), juce::Justification::topLeft);
     }
 }
@@ -351,7 +361,7 @@ void Meter::paint(juce::Graphics& g)
 }
 
 //==============================================================================================
-static const juce::Colour cStep(0xffff5fa2);
+static const juce::Colour& cStep = tok::modStep;
 
 StepperEditor::StepperEditor(NeuroforgeProcessor& p, int idx) : proc(p), st(idx)
 {
@@ -431,38 +441,42 @@ void StepperEditor::paint(juce::Graphics& g)
     const int nc = (int) stepCurveNames().size();
     const float cw = pa.getWidth() / (float) nc;
     for (int i = 0; i < nc; ++i) {
-        auto cell = juce::Rectangle<float>(pa.getX() + cw * (float) i, pa.getY(), cw, pa.getHeight()).reduced(1.5f);
-        g.setColour(i == hoverCurve ? cPanel2.brighter(0.25f) : cPanel2);
+        auto cell = juce::Rectangle<float>(pa.getX() + cw * (float) i, pa.getY(), cw, pa.getHeight()).reduced(2.f, 1.f);
+        const bool sel = i == shapeOf(selected), hov = i == hoverCurve;
+        g.setColour(sel ? cStep.withAlpha(0.20f) : (hov ? tok::raised.brighter(0.15f) : tok::raised));
         g.fillRoundedRectangle(cell, 3.f);
-        drawCurve(g, cell.reduced(4.f, 5.f), i, 1.f, i == hoverCurve ? cText : cStep.withAlpha(0.85f), false);
+        if (sel) { g.setColour(cStep); g.drawRoundedRectangle(cell.reduced(0.5f), 3.f, 1.2f); }
+        drawCurve(g, cell.reduced(5.f, 5.f), i, 1.f, sel || hov ? tok::textPrimary : cStep.withAlpha(0.75f), false);
     }
 
     // ---- grid ----
     auto ga = gridArea();
-    g.setColour(juce::Colour(0xff0a0c0f));
+    g.setColour(tok::well);
     g.fillRoundedRectangle(ga, 4.f);
     const int steps = numSteps();
     const float sw = ga.getWidth() / (float) pid::kStepperSteps;
     const float ph = proc.getEngine().uiStepperPhase[st].load(std::memory_order_relaxed);
     const int cur = juce::jlimit(0, steps - 1, (int) (ph * (float) steps));
+    paintGrid(g, ga.reduced(0.f, 5.f), 4, 1);
     const int dropCell = dragCurve >= 0 && ga.contains((float) dragPosX, (float) dragPosY) ? stepAt({ (float) dragPosX, (float) dragPosY }) : -1;
     for (int k = 0; k < pid::kStepperSteps; ++k) {
         auto cell = juce::Rectangle<float>(ga.getX() + sw * (float) k, ga.getY(), sw, ga.getHeight()).reduced(1.f, 3.f);
         const bool on = k < steps;
-        if (on && k == cur) { g.setColour(cCyan.withAlpha(0.10f)); g.fillRect(cell); }
+        if (on && k == cur) { g.setColour(cStep.withAlpha(0.12f)); g.fillRect(cell); } // playhead
         if (k == hoverCell || k == dropCell) { g.setColour(cText.withAlpha(0.08f)); g.fillRect(cell); }
-        drawCurve(g, cell.reduced(2.f, 2.f), shapeOf(k), amountOf(k), on ? cStep : cDim.withAlpha(0.35f), on);
+        if (!on) { g.setColour(tok::well.darker(0.4f).withAlpha(0.6f)); g.fillRect(cell); } // beyond the pattern length
+        drawCurve(g, cell.reduced(2.f, 2.f), shapeOf(k), amountOf(k), on ? cStep : tok::textDisabled, on);
         if (k > 0) {
             g.setColour(cEdge.withAlpha(k % 4 == 0 ? 0.9f : 0.45f));
             g.drawVerticalLine((int) cell.getX() - 1, ga.getY() + 2.f, ga.getBottom() - 2.f);
         }
-        if (k == selected) { g.setColour(cAccent.withAlpha(0.6f)); g.drawRect(cell, 1.f); }
+        if (k == selected) { g.setColour(cStep); g.drawRect(cell, 1.2f); }
     }
     g.setColour(cEdge);
     g.drawRoundedRectangle(ga, 4.f, 1.f);
     // live output level on the right edge
     const float out = proc.getEngine().uiStepper[st].load(std::memory_order_relaxed);
-    g.setColour(cCyan);
+    g.setColour(tok::textPrimary.withAlpha(0.8f));
     g.fillRect(ga.getRight() - 3.f, ga.getBottom() - 2.f - (ga.getHeight() - 4.f) * out, 2.f, (ga.getHeight() - 4.f) * out);
 
     // ---- curve being dragged ----
@@ -478,8 +492,8 @@ void StepperEditor::paint(juce::Graphics& g)
         juce::String txt(stepCurveNames()[(size_t) nameIdx]);
         if (hoverCell >= 0 && dragCurve < 0 && hoverCurve < 0)
             txt << "  " << juce::roundToInt(amountOf(hoverCell) * 100.f) << "%";
-        g.setColour(cText);
-        g.setFont(font(10.f, true));
+        g.setColour(tok::textPrimary);
+        g.setFont(fValue());
         g.drawText(txt, ga.reduced(6.f, 3.f).toNearestInt(), juce::Justification::topLeft);
     }
 }
@@ -487,7 +501,12 @@ void StepperEditor::paint(juce::Graphics& g)
 void StepperEditor::mouseMove(const juce::MouseEvent& e)
 {
     const int hc = paletteIndexAt(e.position), hs = paletteArea().contains(e.position) ? -1 : stepAt(e.position);
-    if (hc != hoverCurve || hs != hoverCell) { hoverCurve = hc; hoverCell = hs; repaint(); }
+    if (hc != hoverCurve || hs != hoverCell) {
+        hoverCurve = hc; hoverCell = hs;
+        if (hc >= 0) setTooltip(juce::String(stepCurveNames()[(size_t) hc]) + ": drag onto a step, or click to apply to the selected step");
+        else if (hs >= 0) setTooltip("Step " + juce::String(hs + 1) + ": drag up/down for intensity, wheel = next curve, right-click = pick curve");
+        repaint();
+    }
 }
 
 void StepperEditor::mouseDown(const juce::MouseEvent& e)

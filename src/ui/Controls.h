@@ -36,7 +36,12 @@ public:
     void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); }
     void mouseExit(const juce::MouseEvent&) override { hover = false; hoverBadge = -1; overCircle = false; repaint(); }
     void mouseMove(const juce::MouseEvent&) override;
+    bool keyPressed(const juce::KeyPress&) override;
+    void focusGained(FocusChangeType) override { repaint(); }
+    void focusLost(FocusChangeType) override { repaint(); }
+    void enablementChanged() override { repaint(); }
     void tick() override;
+    void enterValue();   // typed value entry (right-click menu / Enter key)
 
     bool isInterestedInDragSource(const SourceDetails&) override;
     void itemDragEnter(const SourceDetails&) override { dropHighlight = true; repaint(); }
@@ -46,6 +51,9 @@ public:
 private:
     void showMenu();
     void showBadgeMenu(int badge);
+    enum class Size { Small, Medium, Large };   // same design at every size; proportions scale with the radius
+    Size sizeClass() const;
+    juce::Rectangle<float> circleArea() const;
     bool hasBadgeRow() const;
     juce::Rectangle<float> badgeArea() const;
     juce::Rectangle<float> badgeRect(int i) const;
@@ -115,6 +123,7 @@ private:
 class ModChip : public juce::Component, public juce::SettableTooltipClient, public Tickable {
 public:
     ModChip(NeuroforgeProcessor& p, int src, juce::String text = {});
+    int getSource() const { return src; }
     void paint(juce::Graphics&) override;
     void mouseDrag(const juce::MouseEvent&) override;
     void tick() override;

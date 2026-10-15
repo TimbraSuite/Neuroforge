@@ -42,8 +42,9 @@ Knobs work the same everywhere:
 - Drag up or down to change a value. Hold **Ctrl** for fine adjustment, or use the mouse wheel.
 - **Double-click** resets to the default.
 - Hover or drag to see the exact value.
-- A thin **cyan ring** around a knob shows live modulation. A small dot means at least one modulation route targets it.
-- **Right-click** for: remove modulation from a source, reset, and *Assign to Macro*.
+- Each modulation route draws a thin **ring** around the knob in its source colour (pink = envelope, cyan = LFO, purple = Motion, green = macro, amber = stepper). A solid ring means positive depth, a dashed ring negative depth, and the dot at its end shows how far it pushes. A white dot on the green arc shows the live, modulated value.
+- **Right-click** for: *Enter value…* (type an exact value, units optional), remove modulation, reset, and *Assign to Macro*.
+- **Keyboard:** click a knob, then use the arrow keys (Shift = fine), Delete to reset, Enter to type a value.
 - **Modulation badges:** every modulation route on a knob shows as a small coloured badge under it (E1 = Env 1, L2 = LFO 2, MO1 = Motion 1, M3 = Macro 3, S1 = Step 1, …) and as a coloured arc around the knob showing how far it moves. **Drag a badge up or down** to set the amount, **double-click** it to remove the route, **right-click** it to invert. A white dot shows the live, modulated position.
 
 You can resize the window from the bottom-right corner; the whole interface scales.
@@ -286,7 +287,7 @@ Three recipes, each about ten minutes. Play a held F1 while you build, then a ba
 2. OSC A: **Table** Basic Shapes, **Position** 0% (a sine).
 3. FM OP: **On**, **Ratio** 1, **Fine** +5 ct, **Feedback** 20%. Back on OSC A, set **FM Op** to 25%.
 4. ENVELOPES → Env 3: Attack 40 ms, Decay 130 ms, Sustain 0, **Loop** on.
-5. Drag the **ENV 3** chip onto OSC A's **FM Op** knob. Alt-drag the knob until the cyan ring swings to about 70%. The growl now pulses on 1/8 notes by itself.
+5. Drag the **ENV 3** chip onto OSC A's **FM Op** knob. Drag the **E3** badge under the knob upward until the pink ring reaches about 70% (or Alt-drag the knob). The growl now pulses on 1/8 notes by itself.
 6. Pass 1: add **Fold** (Drive 10 dB, Folds 40%), then **Filter** (Cutoff 4 kHz, Reso 35%).
    - Set Motion to Sync, 1/8, Saw Down, Depth 50%.
    - Set the Fold slot's Motion to 0% so only the filter moves.

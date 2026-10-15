@@ -39,7 +39,8 @@ private:
 class SlotStrip : public Page {
 public:
     SlotStrip(NeuroforgeProcessor& p, int slotIndex);
-    int getDesiredHeight() const { return off ? 26 : 82; }
+    int getDesiredHeight() const { return off ? 24 : 88; }
+    bool isEmpty() const { return off; }
     std::function<void()> onHeightChange;
     void resized() override;
 private:
@@ -51,6 +52,7 @@ private:
     juce::TextButton *addBtn = nullptr, *remBtn = nullptr;
     Knob* pk[4] {};
     Knob *mix = nullptr, *mot = nullptr;
+    int numUsed = 0, sepX = -1;
 };
 
 class MotionEditor : public Page {
@@ -78,6 +80,7 @@ private:
     ParamBar* mixBar = nullptr;
     MotionEditor* motion = nullptr;
     SlotStrip* slots[4] {};
+    juce::Rectangle<int> motionPlate;
 };
 
 std::unique_ptr<Page> makeSourcePanel(NeuroforgeProcessor&);
