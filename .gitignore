@@ -1,0 +1,7 @@
+build/
+build-*/
+libs/JUCE/
+renders/
+*.user
+.vs/
+__pycache__/
