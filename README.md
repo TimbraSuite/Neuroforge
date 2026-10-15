@@ -27,11 +27,12 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 - **FORGE.** One click generates a mix-ready patch for one of 9 archetypes: Reese, FM Growl, Talker, Metallic, Tearer, Hoover, Stab, Liquid and Donk. Each click is a new variation at a consistent loudness.
 - **8 macros with fixed meanings:** GROWL, TALK, GRIT, METAL, MOTION, WIDTH, SUB and TONE. They do the same job on every generated patch.
-- **MUTATE** varies the current sound (subtle, medium or wild) while keeping it musical, and **UNDO** takes you back.
+- **MUTATE** varies the current sound (subtle, medium or wild) while keeping it musical, and **UNDO** takes you back. **INIT** starts from a fresh, empty patch.
 - **The Forge:** 3 passes × 4 FX slots, choosing from 14 effect types.
   - Distortion and filtering: Drive and Fold (both antialiased with ADAA), Crush, Filter, Formant and Comb.
   - Modulation effects: Phaser, Flanger, Frequency Shifter, Ring Mod and Disperser-style dispersion.
   - Dynamics and finishing: 3-band OTT, EQ and Width.
+  - Each pass shows its effects as a chain of cards.
   - Each pass has its own **Motion**, a tempo-synced LFO or a 16-step sequencer. Each pass re-applies movement the way a resample pass would.
 - **In-plugin resampling.**
   - **CAPTURE** renders your patch into a wavetable, sliced in sync with the note's pitch.
@@ -45,8 +46,11 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 - **Modulation:**
   - Looping envelopes, for Noisia-style self-moving FM.
   - 4 LFOs, 2 **curve steppers** (16 steps, a drawable curve shape and intensity per step), 24 matrix slots.
-  - Drag-to-modulate on every knob, with coloured **modulation badges** you drag to set the amount, and range arcs on the knob.
+  - Drag a source chip onto any knob to modulate it. Knobs you can drop on are highlighted while you drag, and hovering a chip shows everything it modulates.
+  - Sources are colour-coded: pink envelopes, cyan LFOs, purple Motion, white macros, amber steppers.
+  - Each route shows as a **modulation badge** under the knob (drag it to set the depth) and a ring on the knob. When a knob has more routes than badges, **+n** opens a popover that lists every route, with a depth bar, invert and remove.
 - 2x/4x internal oversampling with linear-phase decimation.
+- **Workflow:** type exact values (right-click → *Enter value…*, or press Enter on a focused knob), full keyboard control of knobs, an output meter with peak hold and a latching clip light, and a scalable interface (drag the bottom-right corner).
 
 ## Install (beta)
 
@@ -146,4 +150,4 @@ The output lands in `build/Neuroforge_artefacts/Release/`.
 
 ## License
 
-Neuroforge is released under the **GNU AGPLv3**; see [LICENSE](LICENSE). It is built with [JUCE](https://juce.com), which is used under its AGPLv3 option, and [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions) (MIT) for the CLAP format.
+Neuroforge is released under the **GNU AGPLv3**; see [LICENSE](LICENSE). It is built with [JUCE](https://juce.com), which is used under its AGPLv3 option, and [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions) (MIT) for the CLAP format. The UI uses the Roboto Condensed font (Apache License 2.0, see [`assets/fonts/`](assets/fonts/)).

@@ -115,6 +115,7 @@ def main() -> None:
         info.external_attr = (stat.S_IFREG | 0o644) << 16
         z.writestr(info, install)
         z.write("LICENSE", "LICENSE.txt")
+        z.write("assets/fonts/LICENSE-Apache-2.0.txt", "third-party-licenses/RobotoCondensed-LICENSE-Apache-2.0.txt")
         z.write(f"{a.cje}/LICENSE.md", "third-party-licenses/clap-juce-extensions-LICENSE.txt")
         z.write(f"{a.cje}/clap-libs/clap/LICENSE", "third-party-licenses/clap-LICENSE.txt")
         z.write(f"{a.cje}/clap-libs/clap-helpers/LICENSE", "third-party-licenses/clap-helpers-LICENSE.txt")

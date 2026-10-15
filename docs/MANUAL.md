@@ -30,22 +30,24 @@ The window has six areas, laid out in the order the sound travels: source on the
 
 | Area | Where | What it is for |
 | --- | --- | --- |
-| Top bar | Top | Presets, Save, INIT (fresh empty patch), archetype + FORGE, MUTATE, UNDO, CAPTURE, NEXT GEN, capture settings (**...**), quality (1x/2x/4x), Master gain and the output meter |
+| Top bar | Top | Three groups. Preset: preset menu, Save, INIT (fresh empty patch). Generation: archetype + FORGE, MUTATE, CAPTURE, NEXT GEN and capture settings (**...**). Utility: UNDO, quality (1x/2x/4x), Master gain and the output meter |
 | Source | Left | Tabs OSC A, OSC B, FM OP, SUB+NZ and FILTER: everything that makes the raw sound, per voice |
-| The Forge | Middle | Three passes, each with its own Motion and up to four FX slots |
-| Output | Right | Low Guard, Sub Warmth, Sub Level, Mid Level, Mid Width, Master Clip, plus an oscilloscope and spectrum |
+| The Forge | Middle | Three passes, each with its own Motion and a chain of up to four effect cards |
+| Output | Right | Low Guard, Sub Warmth, Sub Level, Mid Level, Mid Width, Master Clip, plus an oscilloscope, a spectrum (with dB scale) and the KEYS button that shows or hides the on-screen keyboard |
 | Macros | Bottom left | Eight big knobs: GROWL, TALK, GRIT, METAL, MOTION, WIDTH, SUB, TONE |
-| Modulation | Bottom | Tabs ENVELOPES, LFOS, STEPPER and MATRIX, plus the row of draggable source chips (ENV, LFO, MOT, VEL, NOTE, MW, PB, AT, RND, STP) |
+| Modulation | Bottom | Tabs ENVELOPES, LFOS, STEPPER and MATRIX, plus the **DRAG** strip of source chips: ENV 1–3, LFO 1–4, MOT 1–3, STP 1–2, then VEL, NOTE, MW, PB, AT and RND |
 
 Knobs work the same everywhere:
 
 - Drag up or down to change a value. Hold **Ctrl** for fine adjustment, or use the mouse wheel.
 - **Double-click** resets to the default.
 - Hover or drag to see the exact value.
-- Each modulation route draws a thin **ring** around the knob in its source colour (pink = envelope, cyan = LFO, purple = Motion, green = macro, amber = stepper). A solid ring means positive depth, a dashed ring negative depth, and the dot at its end shows how far it pushes. A white dot on the green arc shows the live, modulated value.
-- **Right-click** for: *Enter value…* (type an exact value, units optional), remove modulation, reset, and *Assign to Macro*.
+- The green arc is the knob's own value. Each modulation route draws a thin **ring** outside it in its source colour (pink = envelope, cyan = LFO, purple = Motion, white = macro, amber = stepper). A solid ring means positive depth, a dashed ring negative depth. A small marker shows where the knob is set and a white dot shows the live, modulated value.
+- **Right-click** for: *Enter value…* (type an exact value, units optional), remove modulation, *Edit all modulation…*, reset, and *Assign to Macro*.
 - **Keyboard:** click a knob, then use the arrow keys (Shift = fine), Delete to reset, Enter to type a value.
-- **Modulation badges:** every modulation route on a knob shows as a small coloured badge under it (E1 = Env 1, L2 = LFO 2, MO1 = Motion 1, M3 = Macro 3, S1 = Step 1, …) and as a coloured arc around the knob showing how far it moves. **Drag a badge up or down** to set the amount, **double-click** it to remove the route, **right-click** it to invert. A white dot shows the live, modulated position.
+- **Modulation badges:** modulation routes show as small coloured badges under the knob (E1 = Env 1, L2 = LFO 2, MO1 = Motion 1, M3 = Macro 3, S1 = Step 1, …). **Drag a badge up or down** to set the amount, **double-click** it to remove the route, **right-click** it to invert, set +50% or remove it.
+- **More routes than badges:** when a knob has more routes than fit, the last badge reads **+n**. Click it (or right-click the knob → *Edit all modulation…*) to open a popover listing every route on that knob, each with a depth bar (drag left/right, double-click for 0), **±** to invert and **×** to remove.
+- **Finding routes:** hover a source chip and every knob it modulates lights up. While you drag a chip, the knobs you can drop it on show a dashed outline, and a knob flashes when a route is made.
 
 You can resize the window from the bottom-right corner; the whole interface scales.
 
@@ -73,7 +75,7 @@ FORGE builds a complete patch for the chosen archetype. That covers the source, 
 
 Mutate never touches the master section, Low Guard, the sub, oscillator levels, the amp envelope, macros or modulation routes. It re-matches loudness afterwards.
 
-**UNDO** (next to MUTATE) steps back through your last whole-patch changes: FORGE, MUTATE, NEXT GEN, loading a preset and Init. It remembers up to 32 steps. Knob tweaks are not part of this history; use your DAW's undo for those.
+**UNDO** (in the utility group of the top bar) steps back through your last whole-patch changes: FORGE, MUTATE, NEXT GEN, loading a preset and Init. It remembers up to 32 steps. Knob tweaks are not part of this history; use your DAW's undo for those.
 
 ## The eight macros
 
@@ -150,7 +152,7 @@ The Forge is where a neuro bass gets its character. It is three passes in series
 
 ### Passes
 
-- The toggle switches a pass on or off. **Mix** blends the pass with its input, so a pass can run as parallel processing.
+- The toggle in the pass header switches a pass on or off; an active pass has a lit top edge and a bypassed pass is dimmed. **Mix** blends the pass with its input, so a pass can run as parallel processing.
 - A typical split:
   - **Pass 1** shapes and talks (filter or formant, then drive).
   - **Pass 2** adds character (comb, phaser, fold, crush).
@@ -168,7 +170,7 @@ Each pass has one Motion modulator that moves the **first knob (P1)** of every s
 
 ### FX slots
 
-Click **+ add FX** to pick an effect; **x** removes it. Every slot has its four parameters, **Mix**, and **Motion**. Motion runs from −100% to +100% and sets how strongly, and in which direction, the pass's Motion moves P1.
+Each pass shows its effects as a chain of cards under **EFFECTS**, in processing order (scroll the chain if it doesn't fit). Click an empty **+ Add effect** slot to pick an effect, click a card's title to swap it for another, and **×** removes it. Every card has its four parameters, plus **Mix** and **Motion** in its footer. Motion runs from −100% to +100% and sets how strongly, and in which direction, the pass's Motion moves P1.
 
 | FX | P1 (Motion target) | P2 | P3 | P4 | Good for |
 | --- | --- | --- | --- | --- | --- |
@@ -183,8 +185,8 @@ Click **+ add FX** to pick an effect; **x** removes it. Every slot has its four 
 | FreqShift | Shift (±1000 Hz) | Feedback | Stereo | – | Inharmonic sheen; small shifts give slow beating |
 | RingMod | Freq | KeyTrack | Shape (sine to square) | – | Bell-like metal |
 | Disperse | Freq | Amount (up to 64 allpass stages) | Pinch | Spread | Laser "zap" smear (Disperser style) |
-| OTT | Depth | Time | Upward | Downward | Three-band upward and downward compression: brings up grit and detail |
-| EQ | Low cut | Tilt (±12 dB) | Mid freq | Mid gain | Clean-up and tone |
+| OTT | Depth | Time | Up (upward) | Down (downward) | Three-band upward and downward compression: brings up grit and detail |
+| EQ | Low Cut | Tilt (±12 dB) | Mid Freq | Mid Gain | Clean-up and tone |
 | Width | Width (0–200%) | Haas (0–20 ms) | Mono below | – | Stereo shaping |
 
 **Order matters.**
@@ -198,11 +200,11 @@ Click **+ add FX** to pick an effect; **x** removes it. Every slot has its four 
 Anything with a knob can move. The quickest way is to **drag a source chip onto a knob**. This creates a route at 50% in the first free matrix row.
 
 - **Source chips** sit in three places:
-  - the row above the modulation tabs (ENV 1–3, LFO 1–4, MOT 1–3, VEL, NOTE, MW, PB, AT, RND)
+  - the **DRAG** strip next to the modulation tabs (ENV 1–3, LFO 1–4, MOT 1–3, STP 1–2, VEL, NOTE, MW, PB, AT, RND)
   - above each macro knob
   - as the MOTION chip in each pass header
-- **Change the amount**: Alt-drag the knob, or edit the row in the MATRIX tab.
-- **Remove**: right-click the knob and choose *Remove modulation from …*, or clear the row in MATRIX.
+- **Change the amount**: drag the route's badge under the knob, Alt-drag the knob, click **+n** for the full list, or edit the row in the MATRIX tab.
+- **Remove**: double-click the badge, right-click the knob and choose *Remove modulation from …*, or clear the row in MATRIX.
 
 | Source | Range | Notes |
 | --- | --- | --- |
@@ -222,12 +224,13 @@ The **STEPPER** tab holds two curve sequencers, STEP 1 and STEP 2, in the style 
 
 - **Pick a curve:** drag one of the 20 shapes from the palette (ramps, exp/log, hump, pulse, spike, bounce, trill, stairs, wobble, …) onto a step. Or select a step, then click a curve. The mouse wheel on a step cycles its curve; right-click picks one from a list.
 - **Set intensity:** drag up or down inside a step. Drag sideways to paint several steps at once. Double-click a step for full intensity.
+- The **Timing** group holds Sync, Retrig and the step length or Rate; the **Pattern** group holds Steps and Smooth. Switch between the two sequencers with the **STEP 1 / STEP 2** pills.
 - **Steps** sets the pattern length, the **step length** (Sync on, e.g. 1/16) or **Rate** (Sync off, Hz) sets the speed, **Smooth** rounds off jumps between steps, and **Retrig** restarts the pattern on each note.
 - Drag the **STP 1 / STP 2** chip onto any knob to use it. A stepper on a filter cutoff, formant vowel or FM amount gives detailed, rhythmic talking that an LFO can't.
 
 **Looping envelopes** are the secret to self-moving FM basses. A looped Env 3 with Attack 40 ms and Decay 130 ms repeats about every 1/8 note at 174 BPM. Route it to an FM Op amount, a wavetable Position or a filter cutoff.
 
-The **MATRIX** tab shows all 24 routes: source, destination (grouped by section), and a bipolar amount. Modulation adds to the knob's own value, so set the knob where the movement should start.
+The **MATRIX** tab shows all 24 routes: a colour-coded source, a destination named by section and slot (for example *Filter Cutoff (Slot 1)*), and a bipolar amount. Modulation adds to the knob's own value, so set the knob where the movement should start.
 
 ## Capture and Next Gen
 
@@ -258,6 +261,8 @@ The status next to the buttons shows *Rendering…* and then which slot was fill
 
 Neuroforge keeps the sub clean and mono automatically, so you can distort the mids as hard as you like.
 
+The output meter in the top bar shows the level in dB with a peak hold of about 1.5 seconds. The **CLIP** light stays on once the output reaches 0 dBFS; click it to reset.
+
 | Control | What it does | Starting point |
 | --- | --- | --- |
 | Low Guard | Splits the oscillators at Guard Freq. Everything below goes to the mono sub bus; everything above goes through the Forge, and is high-passed again afterwards so distortion cannot muddy the low end | On |
@@ -283,7 +288,7 @@ Three recipes, each about ten minutes. Play a held F1 while you build, then a ba
 
 ### 1. Self-moving FM growl (Noisia-style)
 
-1. Preset menu → **Init**. On SUB+NZ set the sub **Octave** to 0.
+1. Click **INIT** (top bar, next to Save). On SUB+NZ set the sub **Octave** to 0.
 2. OSC A: **Table** Basic Shapes, **Position** 0% (a sine).
 3. FM OP: **On**, **Ratio** 1, **Fine** +5 ct, **Feedback** 20%. Back on OSC A, set **FM Op** to 25%.
 4. ENVELOPES → Env 3: Attack 40 ms, Decay 130 ms, Sustain 0, **Loop** on.
