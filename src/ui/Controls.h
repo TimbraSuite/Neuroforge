@@ -47,6 +47,7 @@ public:
     void enablementChanged() override { repaint(); }
     void tick() override;
     void enterValue();   // typed value entry (right-click menu / Enter key)
+    void showRoutesMenu(); // popover with every modulation route on this knob
 
     bool isInterestedInDragSource(const SourceDetails&) override;
     void itemDragEnter(const SourceDetails&) override { dropHighlight = true; repaint(); }
@@ -65,7 +66,6 @@ private:
     int badgeSlots() const;
     int shownBadges() const;
     bool hasOverflow() const;
-    void showRoutesMenu();
     int badgeAt(juce::Point<float>) const;
     NeuroforgeProcessor& proc;
     int pid;
@@ -109,6 +109,7 @@ public:
     float value = 0.f, defaultValue = 0.f;
     bool bipolar = false;
     juce::String label;
+    juce::Colour fill = tok::accent;   // bar colour (modulation depth bars use their source colour)
     std::function<juce::String(float)> fmt;
     std::function<void()> onBegin, onEnd;
     std::function<void(float)> onUserChange;

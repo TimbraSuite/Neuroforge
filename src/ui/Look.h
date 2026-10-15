@@ -99,6 +99,15 @@ public:
                        int thumbSize, bool over, bool down) override;
     int getDefaultScrollbarWidth() override { return 8; }
     juce::Font getAlertWindowMessageFont() override { return fLabel(); }
+    void drawCallOutBoxBackground(juce::CallOutBox&, juce::Graphics& g, const juce::Path& path, juce::Image&) override
+    {
+        g.setColour(juce::Colours::black.withAlpha(0.35f));
+        g.fillPath(path, juce::AffineTransform::translation(0.f, 2.f));
+        g.setColour(tok::panel);
+        g.fillPath(path);
+        g.setColour(tok::edge.brighter(0.2f));
+        g.strokePath(path, juce::PathStrokeType(1.f));
+    }
     juce::Font getAlertWindowTitleFont() override { return fModule(); }
 };
 

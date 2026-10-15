@@ -453,29 +453,111 @@ void Knob::showBadgeMenu(int bi)
     });
 }
 
+//==============================================================================================
+// Every modulation route on one parameter, each with a draggable depth bar, invert and remove.
+// Opened from a knob's "+n" badge (or "Edit all modulation..." in its menu). Rows are bound to the matrix
+// parameters, so edits go through the normal parameter path (host automation and undo stay intact).
+class RoutesPopover : public juce::Component, public Tickable {
+public:
+    RoutesPopover(NeuroforgeProcessor& p, int paramId, juce::String title) : proc(p), pid(paramId), heading(std::move(title))
+    {
+        rebuild();
+    }
+
+    void tick() override
+    {
+        if (!isShowing()) return;
+        auto now = proc.getRoutesFor(pid);
+        bool same = now.size() == shown.size();
+        for (size_t i = 0; same && i < now.size(); ++i) same = now[i].row == shown[i].row && now[i].src == shown[i].src;
+        if (!same) rebuild();
+    }
+
+    void paint(juce::Graphics& g) override
+    {
+        g.setColour(tok::textPrimary);
+        g.setFont(fModule());
+        g.drawText("Modulation: " + heading, 10, 6, getWidth() - 20, 18, juce::Justification::centredLeft);
+        g.setColour(tok::textSecondary);
+        g.setFont(fMeta());
+        g.drawText("drag a bar for depth  /  double-click = 0", 10, 22, getWidth() - 20, 14, juce::Justification::centredLeft);
+        if (shown.empty()) {
+            g.setColour(tok::textSecondary);
+            g.setFont(fLabel());
+            g.drawText("No modulation on this parameter.", 10, kTop, getWidth() - 20, kRowH, juce::Justification::centredLeft);
+        }
+        for (size_t i = 0; i < shown.size(); ++i) {
+            const int y = kTop + (int) i * kRowH;
+            const auto col = modSrcColour(shown[i].src);
+            g.setColour(col);
+            g.fillRoundedRectangle(10.f, (float) y + 6.f, 3.f, (float) kRowH - 12.f, 1.5f);
+            g.setFont(fLabel());
+            g.setColour(col.brighter(0.2f));
+            g.drawText(juce::String(modSrcNames()[(size_t) shown[i].src]), 18, y, kNameW - 10, kRowH, juce::Justification::centredLeft);
+        }
+    }
+
+    void resized() override
+    {
+        for (size_t i = 0; i < rows.size(); ++i) {
+            const int y = kTop + (int) i * kRowH;
+            auto r = juce::Rectangle<int>(kNameW + 8, y + 3, getWidth() - kNameW - 16, kRowH - 6);
+            rows[i].del->setBounds(r.removeFromRight(22));
+            r.removeFromRight(3);
+            rows[i].inv->setBounds(r.removeFromRight(22));
+            r.removeFromRight(5);
+            rows[i].bar->setBounds(r);
+        }
+    }
+
+private:
+    struct Row { std::unique_ptr<ParamBar> bar; std::unique_ptr<juce::TextButton> inv, del; };
+    static constexpr int kTop = 40, kRowH = 28, kNameW = 92;
+
+    void rebuild()
+    {
+        rows.clear();
+        shown = proc.getRoutesFor(pid);
+        for (auto& rt : shown) {
+            Row row;
+            row.bar = std::make_unique<ParamBar>(proc, pid::mx(rt.row, pid::mxAmt), "");
+            row.bar->fill = modSrcColour(rt.src);
+            row.bar->fmt = [](float n) { const int v = juce::roundToInt((n * 2.f - 1.f) * 100.f); return (v > 0 ? "+" : "") + juce::String(v) + "%"; };
+            row.bar->setTooltip("Depth: drag left/right, double-click for 0");
+            row.inv = std::make_unique<juce::TextButton>(juce::String::fromUTF8("\xc2\xb1"));
+            row.inv->setTooltip("Invert depth");
+            const int mxRow = rt.row;
+            row.inv->onClick = [this, mxRow] {
+                const int amtId = pid::mx(mxRow, pid::mxAmt);
+                proc.setRouteAmount(mxRow, -normToReal(amtId, proc.getRaw(amtId)));
+            };
+            row.del = std::make_unique<juce::TextButton>(juce::String::fromUTF8("\xc3\x97"));
+            setStyle(*row.del, "icon");
+            row.del->setTooltip("Remove this modulation");
+            row.del->onClick = [this, mxRow] { proc.removeRoute(mxRow); };
+            addAndMakeVisible(*row.bar);
+            addAndMakeVisible(*row.inv);
+            addAndMakeVisible(*row.del);
+            rows.push_back(std::move(row));
+        }
+        setSize(330, kTop + juce::jmax(1, (int) shown.size()) * kRowH + 8);
+        resized();
+        repaint();
+    }
+
+    NeuroforgeProcessor& proc;
+    int pid;
+    juce::String heading;
+    std::vector<NfModRoute> shown;
+    std::vector<Row> rows;
+};
+
 void Knob::showRoutesMenu()
 {
-    juce::PopupMenu m;
-    m.addSectionHeader("All modulation on " + label);
-    for (const auto& rt : routes) {
-        juce::PopupMenu sub;
-        sub.addItem(1000 + rt.row * 4 + 1, "Invert depth");
-        sub.addItem(1000 + rt.row * 4 + 2, "Set depth to +50%");
-        sub.addItem(1000 + rt.row * 4 + 3, "Remove modulation");
-        m.addSubMenu(juce::String(modSrcShort(rt.src)) + "   " + (rt.amount >= 0.f ? "+" : "") +
-                         juce::String(juce::roundToInt(rt.amount * 100.f)) + "%", sub);
-    }
-    const auto snapshot = routes;
-    juce::Component::SafePointer<Knob> sp(this);
-    m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this), [sp, snapshot](int r) {
-        if (sp == nullptr || r < 1000) return;
-        const int row = (r - 1000) / 4, act = (r - 1000) % 4;
-        float amt = 0.f;
-        for (auto& x : snapshot) if (x.row == row) amt = x.amount;
-        if (act == 1) sp->proc.setRouteAmount(row, -amt);
-        else if (act == 2) sp->proc.setRouteAmount(row, 0.5f);
-        else if (act == 3) sp->proc.removeRoute(row);
-    });
+    auto content = std::make_unique<RoutesPopover>(proc, pid, label);
+    auto area = getScreenBounds();
+    if (auto* top = getTopLevelComponent()) area = top->getLocalArea(nullptr, area);
+    juce::CallOutBox::launchAsynchronously(std::move(content), area, getTopLevelComponent());
 }
 
 void Knob::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w)
@@ -507,7 +589,7 @@ void Knob::showMenu()
     for (auto& r : routes)
         m.addItem(100 + r.row, juce::String("Remove modulation from ") + modSrcShort(r.src) +
                                    " (" + juce::String(r.amount, 2) + ")");
-    if (!routes.empty()) m.addSeparator();
+    if (!routes.empty()) { m.addItem(3, "Edit all modulation..."); m.addSeparator(); }
     m.addItem(2, "Enter value...");
     m.addItem(1, "Reset to default");
     if (modulatable) {
@@ -521,6 +603,7 @@ void Knob::showMenu()
         if (sp == nullptr || r == 0) return;
         if (r == 1) sp->att->setValueAsCompleteGesture(sp->defNorm);
         else if (r == 2) sp->enterValue();
+        else if (r == 3) sp->showRoutesMenu();
         else if (r >= 100 && r < 200) sp->proc.removeRoute(r - 100);
         else if (r >= 200 && r < 208) sp->proc.addRoute((int) ModSrc::Macro1 + (r - 200), sp->pid, 0.5f);
     });
@@ -601,16 +684,21 @@ void Bar::paint(juce::Graphics& g)
         f = { std::min(mid, x), r.getY(), std::abs(x - mid), r.getHeight() };
     } else
         f = r.withWidth(r.getWidth() * value);
-    g.setColour(cAccent.withAlpha(0.75f));
+    g.setColour(fill.withAlpha(0.75f));
     g.fillRoundedRectangle(f, 3.f);
-    g.setColour(cEdge);
+    if (bipolar) { // centre mark
+        g.setColour(tok::textSecondary);
+        g.drawVerticalLine((int) r.getCentreX(), r.getY() + 2.f, r.getBottom() - 2.f);
+    }
+    g.setColour(isMouseOver() ? cEdge.brighter(0.3f) : cEdge);
     g.drawRoundedRectangle(r, 3.f, 1.f);
-    g.setFont(font(10.5f));
-    g.setColour(cText);
-    auto tr = getLocalBounds().reduced(4, 0);
+    auto tr = getLocalBounds().reduced(5, 0);
+    g.setFont(fLabel());
+    g.setColour(tok::textPrimary);
     if (label.isNotEmpty()) g.drawText(label, tr, juce::Justification::centredLeft);
     if (fmt) {
-        g.setColour(bipolar || value > 0.5f ? juce::Colours::white : cText);
+        g.setFont(fValue());
+        g.setColour(juce::Colours::white);
         g.drawText(fmt(value), tr, juce::Justification::centredRight);
     }
 }
