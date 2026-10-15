@@ -17,7 +17,7 @@ private:
     void timerCallback() override;
 
     struct Content : juce::Component {
-        void paint(juce::Graphics& g) override { g.fillAll(nfui::cBg); }
+        void paint(juce::Graphics& g) override { g.fillAll(nfui::cBg); nfui::paintMetal(g, getLocalBounds().toFloat(), 0.f, 3, nfui::kMetalOpacity * 0.5f); }
     };
 
     NeuroforgeProcessor& proc;

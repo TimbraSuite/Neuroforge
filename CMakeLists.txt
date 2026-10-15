@@ -52,7 +52,8 @@ if (NF_BUILD_PLUGIN)
     target_sources(Neuroforge PRIVATE ${NF_APP_SOURCES})
     target_compile_definitions(Neuroforge PUBLIC
         JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0 JUCE_DISPLAY_SPLASH_SCREEN=0)
-    target_link_libraries(Neuroforge PRIVATE nf_dsp
+    juce_add_binary_data(NfAssets SOURCES assets/logo.png assets/metal_tile.png)
+    target_link_libraries(Neuroforge PRIVATE nf_dsp NfAssets
         juce::juce_audio_utils juce::juce_dsp
         PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
 endif()

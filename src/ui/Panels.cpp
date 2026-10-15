@@ -241,6 +241,7 @@ SlotStrip::SlotStrip(NeuroforgeProcessor& p, int s) : proc(p), slot(s)
         } else {
             g.setColour(cPanel);
             g.fillRoundedRectangle(r, 4.f);
+            paintMetal(g, r, 4.f, getX() * 13 + getY() * 7);
             g.setColour(cEdge);
             g.drawRoundedRectangle(r, 4.f, 1.f);
         }
@@ -360,6 +361,7 @@ PassColumn::PassColumn(NeuroforgeProcessor& p, int i) : idx(i)
         auto r = getLocalBounds().toFloat().reduced(0.5f);
         g.setColour(cPanel2);
         g.fillRoundedRectangle(r, 6.f);
+        paintMetal(g, r, 6.f, getX() * 29 + 5);
         g.setColour(cEdge);
         g.drawRoundedRectangle(r, 6.f, 1.f);
         g.setColour(cText);
@@ -794,11 +796,8 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
 
     painter = [this](juce::Graphics& g) {
         paintPanel(g, getLocalBounds());
-        g.setFont(font(21.f, true));
-        g.setColour(cText);
-        g.drawText("NEURO", 14, 0, 80, 46, juce::Justification::centredLeft);
-        g.setColour(cAccent);
-        g.drawText("FORGE", 14 + 78, 0, 80, 46, juce::Justification::centredLeft);
+        if (logoImage().isValid())
+            g.drawImageWithin(logoImage(), 12, 2, 158, getHeight() - 4, juce::RectanglePlacement::centred);
     };
     layout = [=](juce::Rectangle<int>) {
         const int y1 = 6, h1 = 22;
