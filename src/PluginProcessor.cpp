@@ -253,8 +253,11 @@ void NeuroforgeProcessor::loadState(const ParamState& s)
 
 juce::File NeuroforgeProcessor::userPresetDir()
 {
-    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-        .getChildFile("Neuroforge").getChildFile("Presets");
+    auto base = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
+   #if JUCE_MAC
+    base = base.getChildFile("Application Support"); // JUCE returns ~/Library on macOS
+   #endif
+    return base.getChildFile("Neuroforge").getChildFile("Presets");
 }
 
 std::vector<NfPresetEntry> NeuroforgeProcessor::getPresetList() const

@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
-project(Neuroforge VERSION 0.1.2 LANGUAGES C CXX)
+
+# macOS: universal binary (Apple Silicon + Intel), runs on macOS 10.15+. Must be set before project().
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS version")
+if (APPLE AND NOT CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures" FORCE)
+endif()
+
+project(Neuroforge VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -41,12 +48,18 @@ if (NF_BUILD_PLUGIN)
         add_subdirectory(libs/clap-juce-extensions EXCLUDE_FROM_ALL)
         set(NF_HAS_CLAP ON)
     endif()
+    set(NF_FORMATS VST3 Standalone)
+    if (APPLE)
+        list(APPEND NF_FORMATS AU) # Logic Pro / GarageBand
+    endif()
+
     juce_add_plugin(Neuroforge
         COMPANY_NAME "Neuroforge"
         PLUGIN_MANUFACTURER_CODE Nfrg
         PLUGIN_CODE Nfg1
-        FORMATS VST3 Standalone
+        FORMATS ${NF_FORMATS}
         PRODUCT_NAME "Neuroforge"
+        BUNDLE_ID com.huuba91.neuroforge
         IS_SYNTH TRUE
         NEEDS_MIDI_INPUT TRUE
         NEEDS_MIDI_OUTPUT FALSE

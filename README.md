@@ -4,11 +4,11 @@
 
 <p align="center">
   <b>A neurofunk bass instrument.</b> Great neuro bass in seconds, and deep enough to spend hours in.<br>
-  VST3 + CLAP + Standalone · Windows x64 · <b>beta</b>
+  VST3 · AU · CLAP · Standalone · Windows & macOS · <b>beta</b>
 </p>
 
 <p align="center">
-  <a href="https://github.com/huuba91/neuroforge/releases/tag/v0.1.2-beta"><b>⬇ Download v0.1.2-beta</b></a> ·
+  <a href="https://github.com/huuba91/neuroforge/releases/tag/v0.2.0-beta"><b>⬇ Download v0.2.0-beta</b></a> ·
   <a href="docs/MANUAL.md"><b>📖 Manual & tutorials</b></a> ·
   <a href="https://github.com/huuba91/neuroforge/issues">Report a bug</a>
 </p>
@@ -37,7 +37,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
   - **CAPTURE** renders your patch into a wavetable, sliced in sync with the note's pitch.
   - **NEXT GEN** loads that wavetable into a clean Forge so you can process it again, for several generations.
 - **Low Guard** keeps the sub clean and mono. An LR4 split sends the lows to a mono sub bus, and only the mids get destroyed.
-- **Formats:** VST3, CLAP and a standalone app (Windows x64).
+- **Formats:** VST3, CLAP and a standalone app on Windows and macOS, plus AU for Logic Pro and GarageBand. macOS builds are universal (Apple Silicon + Intel).
 - **Source:** two wavetable oscillators and an FM operator.
   - 12 procedural neuro wavetables.
   - Unison up to 16 voices.
@@ -49,16 +49,44 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 ## Install (beta)
 
-1. Download `Neuroforge-0.1.2-beta-win64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.1.2-beta).
+### Windows
+
+1. Download `Neuroforge-0.2.0-beta-win64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.2.0-beta).
 2. Install the format your DAW uses:
    - **VST3** (Ableton Live, Cubase, FL Studio, Studio One, Reaper, …): copy the **`Neuroforge.vst3`** folder to `C:\Program Files\Common Files\VST3\`.
    - **CLAP** (Bitwig, Reaper, FL Studio, Studio One, …): copy **`Neuroforge.clap`** to `C:\Program Files\Common Files\CLAP\`.
 3. Rescan plug-ins in your DAW. In Ableton: *Settings → Plug-ins → Use VST3 Plug-in System Folders → Rescan*.
-4. Neuroforge appears as an instrument. Play around **F1–F2**.
 
-`Neuroforge.exe` is a standalone version, if you want to try it without a DAW.
+`Neuroforge.exe` is a standalone version. The binaries are not code-signed yet, so Windows SmartScreen may warn on first launch.
 
-> The binaries are not code-signed yet, so Windows SmartScreen may warn on first launch.
+### macOS (10.15 or newer, Apple Silicon and Intel)
+
+**Easiest:** paste this line into **Terminal**. It installs VST3, AU, CLAP and the standalone app for your user:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/huuba91/neuroforge/main/install-mac.sh | bash
+```
+
+Then restart your DAW. Logic Pro and GarageBand use the AU; Ableton, Bitwig, Reaper and others use the VST3 or CLAP. The script is short and [readable](install-mac.sh).
+
+**Manual install:** download `Neuroforge-0.2.0-beta-macos.zip` and copy:
+
+| File | Folder | DAWs |
+| --- | --- | --- |
+| `Neuroforge.vst3` | `~/Library/Audio/Plug-Ins/VST3/` | Ableton Live, Bitwig, Reaper, FL Studio, Cubase, … |
+| `Neuroforge.component` | `~/Library/Audio/Plug-Ins/Components/` | Logic Pro, GarageBand |
+| `Neuroforge.clap` | `~/Library/Audio/Plug-Ins/CLAP/` | Bitwig, Reaper, … |
+| `Neuroforge.app` | `/Applications` | standalone |
+
+> **Why the Terminal step?** These builds are not notarized by Apple (that needs a paid developer account), so macOS blocks plug-ins downloaded with a browser ("cannot be opened" or "is damaged"). The install script avoids that. After a manual install, run this once and restart your DAW:
+>
+> ```bash
+> xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/*/Neuroforge.* /Applications/Neuroforge.app
+> ```
+
+### Then
+
+Neuroforge appears as an instrument. Play around **F1–F2** and press **FORGE**.
 
 ## Learn it
 
@@ -70,8 +98,9 @@ The **[Manual](docs/MANUAL.md)** covers:
 
 ## Beta status
 
-This is the first public beta. Here is what we know:
-- It has only been tested on Windows with Ableton Live (VST3). The CLAP build passes the official [clap-validator](https://github.com/free-audio/clap-validator) but has not been tried in a CLAP host yet. Please report how it runs in your DAW.
+This is a public beta. Here is what we know:
+- Tested by hand on Windows in Ableton Live (VST3) and Bitwig (CLAP).
+- **macOS is new and untested by hand:** every build passes the unit tests, Apple's `auval` Audio Unit validation and the official [clap-validator](https://github.com/free-audio/clap-validator) on a Mac in CI, but nobody has played it in Logic or Ableton on a Mac yet. **Mac testers wanted!** Please report how it runs.
 - Presets are tuned for basslines around F1–F2 (about 44–87 Hz).
 - Heavily clipped patches can overshoot 0 dBTP by a fraction of a dB between samples. A master limiter handles that.
 - Preset and plugin-state formats may still change before 1.0.
@@ -80,16 +109,22 @@ Feedback, bug reports and sound-design ideas are very welcome in [Issues](https:
 
 ## Build from source
 
-Requirements: Windows, Visual Studio 2022/2026 (C++ workload) and CMake ≥ 3.22.
+Requirements: CMake ≥ 3.22 plus Visual Studio 2022/2026 (Windows) or Xcode command line tools and Ninja (macOS).
 
 ```bash
 git clone https://github.com/huuba91/neuroforge.git
 cd neuroforge
 git clone --depth 1 --branch 8.0.4 https://github.com/juce-framework/JUCE.git libs/JUCE
 git clone --recursive https://github.com/free-audio/clap-juce-extensions.git libs/clap-juce-extensions
+# Windows
 cmake -S . -B build -G "Visual Studio 18 2026" -A x64
 cmake --build build --config Release --target Neuroforge_VST3 Neuroforge_CLAP Neuroforge_Standalone
+# macOS (universal binary)
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target Neuroforge_VST3 Neuroforge_AU Neuroforge_CLAP Neuroforge_Standalone
 ```
+
+Every push is also built and tested for both platforms by [GitHub Actions](.github/workflows/build.yml); pushing a `v*` tag publishes a release with both zips.
 
 `libs/clap-juce-extensions` is optional: without it, the CLAP target is simply skipped.
 

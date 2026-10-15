@@ -124,7 +124,27 @@ private:
     std::vector<float> bufL, bufR, bufSub, tmpL, tmpR, voiceL, voiceR, voiceSub, opBuf, bBuf, lowL, lowR, dryL, dryR;
     Decimator decL, decR;
 
-    std::array<std::atomic<std::shared_ptr<const WavetableBank>>, kNumCaptures> captures;
+    // Capture banks are swapped from other threads. std::atomic<std::shared_ptr> isn't available
+    // in every standard library (Apple libc++), so a tiny spin lock guards the pointer copy.
+    struct CaptureSlot {
+        mutable std::atomic_flag busy = ATOMIC_FLAG_INIT;
+        std::shared_ptr<const WavetableBank> bank;
+        void store(std::shared_ptr<const WavetableBank> b)
+        {
+            while (busy.test_and_set(std::memory_order_acquire)) {}
+            bank.swap(b);
+            busy.clear(std::memory_order_release);
+            // the old bank (now in b) is released here, outside the lock
+        }
+        std::shared_ptr<const WavetableBank> load() const
+        {
+            while (busy.test_and_set(std::memory_order_acquire)) {}
+            auto copy = bank;
+            busy.clear(std::memory_order_release);
+            return copy;
+        }
+    };
+    std::array<CaptureSlot, kNumCaptures> captures;
     bool excludeSub = false;
 };
 

@@ -1,0 +1,128 @@
+# Builds Neuroforge for Windows and macOS on every push, runs the tests and plugin validators,
+# and on a version tag (v*) publishes a GitHub pre-release with both zips attached.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  JUCE_TAG: 8.0.4
+  CLAP_JUCE_EXT_COMMIT: 7adee3a1bd4684d4caa5601100e364abccff4b4d
+  CLAP_VALIDATOR_REV: b2f1d9b7
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: windows
+          - os: macos-14
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ninja (macOS)
+        if: matrix.platform == 'macos'
+        run: command -v ninja || brew install ninja
+
+      - name: Version
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then v="${GITHUB_REF#refs/tags/v}"; v="${v%-beta*}";
+          else v=$(sed -nE 's/^project\(Neuroforge VERSION ([0-9.]+).*/\1/p' CMakeLists.txt); fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"; echo "Version $v"
+
+      - name: Fetch JUCE and clap-juce-extensions
+        run: |
+          git clone --depth 1 --branch "$JUCE_TAG" https://github.com/juce-framework/JUCE.git libs/JUCE
+          git clone https://github.com/free-audio/clap-juce-extensions.git libs/clap-juce-extensions
+          git -C libs/clap-juce-extensions checkout "$CLAP_JUCE_EXT_COMMIT"
+          git -C libs/clap-juce-extensions submodule update --init --recursive
+
+      - name: Configure (Windows)
+        if: matrix.platform == 'windows'
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Configure (macOS, universal)
+        if: matrix.platform == 'macos'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          targets="Neuroforge_VST3 Neuroforge_CLAP Neuroforge_Standalone nf_tests"
+          if [[ "${{ matrix.platform }}" == macos ]]; then targets="$targets Neuroforge_AU"; fi
+          cmake --build build --config Release --parallel 4 --target $targets
+
+      - name: Unit tests
+        run: |
+          if [[ -f build/Release/nf_tests.exe ]]; then build/Release/nf_tests.exe; else build/nf_tests; fi
+
+      - name: Ad-hoc sign (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          A=build/Neuroforge_artefacts/Release
+          for b in "$A/VST3/Neuroforge.vst3" "$A/AU/Neuroforge.component" "$A/CLAP/Neuroforge.clap" "$A/Standalone/Neuroforge.app"; do
+            codesign --force --deep --sign - "$b"
+            codesign --verify --verbose "$b"
+          done
+          lipo -info "$A/VST3/Neuroforge.vst3/Contents/MacOS/Neuroforge"
+
+      - name: Validate Audio Unit (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R build/Neuroforge_artefacts/Release/AU/Neuroforge.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          sleep 2
+          auval -a | grep -i neuroforge || true
+          auval -strict -v aumu Nfg1 Nfrg
+
+      - name: Validate CLAP
+        run: |
+          cargo install --git https://github.com/free-audio/clap-validator --rev "$CLAP_VALIDATOR_REV" --locked --root "$RUNNER_TEMP/clapval"
+          "$RUNNER_TEMP/clapval/bin/clap-validator" validate --only-failed build/Neuroforge_artefacts/Release/CLAP/Neuroforge.clap
+
+      - name: Package
+        run: python tools/package.py --platform ${{ matrix.platform }} --version ${{ steps.ver.outputs.version }} --artefacts build/Neuroforge_artefacts/Release --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neuroforge-${{ matrix.platform }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          notes="docs/release-notes/$tag.md"
+          [[ -f "$notes" ]] || notes=/dev/null
+          gh release create "$tag" dist/*.zip --title "Neuroforge $tag" --notes-file "$notes" --prerelease
