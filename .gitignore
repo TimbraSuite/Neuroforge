@@ -1,6 +1,7 @@
 build/
 build-*/
 libs/JUCE/
+libs/clap-juce-extensions/
 renders/
 *.user
 .vs/

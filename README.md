@@ -4,11 +4,11 @@
 
 <p align="center">
   <b>A neurofunk bass instrument.</b> Great neuro bass in seconds, and deep enough to spend hours in.<br>
-  VST3 + Standalone · Windows x64 · <b>beta</b>
+  VST3 + CLAP + Standalone · Windows x64 · <b>beta</b>
 </p>
 
 <p align="center">
-  <a href="https://github.com/huuba91/neuroforge/releases/tag/v0.1.0-beta"><b>⬇ Download v0.1.0-beta</b></a> ·
+  <a href="https://github.com/huuba91/neuroforge/releases/tag/v0.1.1-beta"><b>⬇ Download v0.1.1-beta</b></a> ·
   <a href="docs/MANUAL.md"><b>📖 Manual & tutorials</b></a> ·
   <a href="https://github.com/huuba91/neuroforge/issues">Report a bug</a>
 </p>
@@ -37,6 +37,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
   - **CAPTURE** renders your patch into a wavetable, sliced in sync with the note's pitch.
   - **NEXT GEN** loads that wavetable into a clean Forge so you can process it again, for several generations.
 - **Low Guard** keeps the sub clean and mono. An LR4 split sends the lows to a mono sub bus, and only the mids get destroyed.
+- **Formats:** VST3, CLAP and a standalone app (Windows x64).
 - **Source:** two wavetable oscillators and an FM operator.
   - 12 procedural neuro wavetables.
   - Unison up to 16 voices.
@@ -48,8 +49,10 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 ## Install (beta)
 
-1. Download `Neuroforge-0.1.0-beta-win64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.1.0-beta).
-2. Copy the **`Neuroforge.vst3`** folder to `C:\Program Files\Common Files\VST3\`.
+1. Download `Neuroforge-0.1.1-beta-win64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.1.1-beta).
+2. Install the format your DAW uses:
+   - **VST3** (Ableton Live, Cubase, FL Studio, Studio One, Reaper, …): copy the **`Neuroforge.vst3`** folder to `C:\Program Files\Common Files\VST3\`.
+   - **CLAP** (Bitwig, Reaper, FL Studio, Studio One, …): copy **`Neuroforge.clap`** to `C:\Program Files\Common Files\CLAP\`.
 3. Rescan plug-ins in your DAW. In Ableton: *Settings → Plug-ins → Use VST3 Plug-in System Folders → Rescan*.
 4. Neuroforge appears as an instrument. Play around **F1–F2**.
 
@@ -68,7 +71,7 @@ The **[Manual](docs/MANUAL.md)** covers:
 ## Beta status
 
 This is the first public beta. Here is what we know:
-- It has only been tested on Windows with Ableton Live. Please report other DAWs.
+- It has only been tested on Windows with Ableton Live (VST3). The CLAP build passes the official [clap-validator](https://github.com/free-audio/clap-validator) but has not been tried in a CLAP host yet. Please report how it runs in your DAW.
 - Presets are tuned for basslines around F1–F2 (about 44–87 Hz).
 - Heavily clipped patches can overshoot 0 dBTP by a fraction of a dB between samples. A master limiter handles that.
 - Preset and plugin-state formats may still change before 1.0.
@@ -83,9 +86,12 @@ Requirements: Windows, Visual Studio 2022/2026 (C++ workload) and CMake ≥ 3.22
 git clone https://github.com/huuba91/neuroforge.git
 cd neuroforge
 git clone --depth 1 --branch 8.0.4 https://github.com/juce-framework/JUCE.git libs/JUCE
+git clone --recursive https://github.com/free-audio/clap-juce-extensions.git libs/clap-juce-extensions
 cmake -S . -B build -G "Visual Studio 18 2026" -A x64
-cmake --build build --config Release --target Neuroforge_VST3 Neuroforge_Standalone
+cmake --build build --config Release --target Neuroforge_VST3 Neuroforge_CLAP Neuroforge_Standalone
 ```
+
+`libs/clap-juce-extensions` is optional: without it, the CLAP target is simply skipped.
 
 The output lands in `build/Neuroforge_artefacts/Release/`.
 
@@ -104,4 +110,4 @@ The output lands in `build/Neuroforge_artefacts/Release/`.
 
 ## License
 
-Neuroforge is released under the **GNU AGPLv3**; see [LICENSE](LICENSE). It is built with [JUCE](https://juce.com), which is used under its AGPLv3 option.
+Neuroforge is released under the **GNU AGPLv3**; see [LICENSE](LICENSE). It is built with [JUCE](https://juce.com), which is used under its AGPLv3 option, and [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions) (MIT) for the CLAP format.

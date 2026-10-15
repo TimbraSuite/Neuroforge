@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(Neuroforge VERSION 0.1.0 LANGUAGES C CXX)
+project(Neuroforge VERSION 0.1.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -35,6 +35,12 @@ endif()
 # ---- Plugin ---------------------------------------------------------------------------------
 if (NF_BUILD_PLUGIN)
     add_subdirectory(libs/JUCE)
+    # CLAP support (https://github.com/free-audio/clap-juce-extensions), optional
+    set(NF_HAS_CLAP OFF)
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libs/clap-juce-extensions/CMakeLists.txt")
+        add_subdirectory(libs/clap-juce-extensions EXCLUDE_FROM_ALL)
+        set(NF_HAS_CLAP ON)
+    endif()
     juce_add_plugin(Neuroforge
         COMPANY_NAME "Neuroforge"
         PLUGIN_MANUFACTURER_CODE Nfrg
@@ -56,4 +62,10 @@ if (NF_BUILD_PLUGIN)
     target_link_libraries(Neuroforge PRIVATE nf_dsp NfAssets
         juce::juce_audio_utils juce::juce_dsp
         PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags)
+
+    if (NF_HAS_CLAP)
+        clap_juce_extensions_plugin(TARGET Neuroforge
+            CLAP_ID "com.huuba91.neuroforge"
+            CLAP_FEATURES instrument synthesizer mono "drum and bass" bass)
+    endif()
 endif()

@@ -2,6 +2,7 @@
 
 NeuroforgeEditor::NeuroforgeEditor(NeuroforgeProcessor& p) : AudioProcessorEditor(&p), proc(p)
 {
+    p.applyStartupPresetIfFresh();
     juce::LookAndFeel::setDefaultLookAndFeel(&laf);
     setLookAndFeel(&laf);
 

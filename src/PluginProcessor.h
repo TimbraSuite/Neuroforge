@@ -57,6 +57,7 @@ public:
     nf::ParamState currentState() const;
     void loadState(const nf::ParamState& s);
     juce::String presetName { "Init" };
+    void applyStartupPresetIfFresh();
     std::vector<NfPresetEntry> getPresetList() const;
     void loadPreset(const NfPresetEntry& e);
     void initPatch();
@@ -71,6 +72,7 @@ public:
     bool isCapturing() const { return capturing.load(); }
     juce::String getCaptureStatus() const;
     std::atomic<int> captureGeneration { 0 };
+    bool stateWasRestored = false, startupPresetApplied = false;
 
     // ---- modulation routing helpers ----
     std::vector<NfModRoute> getRoutesFor(int paramId) const;

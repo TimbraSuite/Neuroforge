@@ -10,14 +10,30 @@ using namespace nf;
 //==============================================================================================
 static juce::String fmtReal(float r, const juce::String& unit)
 {
-    const float a = std::abs(r);
-    if (unit == "Hz") return a >= 1000.f ? juce::String(r / 1000.f, 2) + " kHz" : juce::String(r, a >= 100.f ? 0 : 1) + " Hz";
-    if (unit == "ms") return a >= 1000.f ? juce::String(r / 1000.f, 2) + " s" : juce::String(r, a >= 100.f ? 0 : 1) + " ms";
+    // Decide the format on the ROUNDED value, so "99.97 Hz" prints as "100 Hz" (not "100.0 Hz")
+    // and text -> value -> text round-trips consistently.
+    auto rounded = [](float v, int dec) { const float k = std::pow(10.f, (float) dec); return std::round(v * k) / k; };
+    if (unit == "Hz" || unit == "ms") {
+        const juce::String big = unit == "Hz" ? " kHz" : " s";
+        if (std::abs(rounded(r, 0)) >= 1000.f) return juce::String(r / 1000.f, 2) + big;
+        if (std::abs(rounded(r, 1)) >= 100.f) return juce::String(rounded(r, 0), 0) + " " + unit;
+        return juce::String(r, 1) + " " + unit;
+    }
     if (unit == "dB") return juce::String(r, 1) + " dB";
     if (unit == "ct") return juce::String(r, 0) + " ct";
     if (unit == "st") return juce::String(r, 1) + " st";
     if (unit == "bit") return juce::String(r, 1) + " bit";
     return juce::String(r, 2) + (unit.isEmpty() ? "" : " " + unit);
+}
+
+// Inverse of fmtReal: understands the unit suffixes fmtReal prints ("1.20 kHz", "1.00 s").
+static float parseReal(const juce::String& text, const juce::String& unit)
+{
+    const auto t = text.trim().toLowerCase();
+    float v = t.getFloatValue();
+    if (unit == "Hz" && t.endsWith("khz")) v *= 1000.f;
+    if (unit == "ms" && t.endsWith("s") && !t.endsWith("ms")) v *= 1000.f;
+    return v;
 }
 
 static bool isSlotP(int id)
@@ -71,7 +87,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout NeuroforgeProcessor::createL
                     if (t.trim().equalsIgnoreCase(juce::String(d2.choices[c]))) return realToNorm(d2, (float) c);
                 if (d2.curve == Curve::Toggle) return (t.trim().equalsIgnoreCase("on") || t.getIntValue() > 0) ? 1.f : 0.f;
                 if (isSlotP(i)) return juce::jlimit(0.f, 1.f, t.getFloatValue() / 100.f);
-                return realToNorm(d2, t.getFloatValue());
+                return realToNorm(d2, parseReal(t, juce::String(d2.unit)));
             });
         layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { d.id, 1 }, d.name, range,
                                                                realToNorm(d, d.def), attr));
@@ -93,12 +109,20 @@ NeuroforgeProcessor::NeuroforgeProcessor()
     events.resize(4096);
     chunkEvents.resize(4096);
 
-    // Open on a real neuro bass instead of a bare init patch.
-    if (!factoryPresets().empty()) {
-        const auto st = factoryPresets().front().state();
-        for (int i = 0; i < pid::count; ++i) params[(size_t) i]->setValueNotifyingHost(st[i]);
-        presetName = factoryPresets().front().name;
-    }
+}
+
+// A brand-new instance opens on a real neuro bass instead of a bare init patch. This happens
+// when the editor first opens (not in the constructor), so hosts that restore a project, and
+// plugin validators that expect parameters to start at their defaults, are not affected.
+void NeuroforgeProcessor::applyStartupPresetIfFresh()
+{
+    if (stateWasRestored || startupPresetApplied) return;
+    startupPresetApplied = true;
+    const auto& fp = factoryPresets();
+    if (fp.empty()) return;
+    NfPresetEntry e;
+    e.name = fp.front().name; e.category = fp.front().category; e.factoryIndex = 0;
+    loadPreset(e);
 }
 
 NeuroforgeProcessor::~NeuroforgeProcessor()
@@ -434,7 +458,16 @@ void NeuroforgeProcessor::setRouteAmount(int row, float amount) { setParamReal(p
 //==============================================================================================
 void NeuroforgeProcessor::getStateInformation(juce::MemoryBlock& dest)
 {
-    auto state = apvts.copyState();
+    // Write every parameter's live value ourselves: some wrappers (e.g. CLAP) change parameters
+    // without notifying APVTS listeners, which would leave a stale copy in apvts.state.
+    juce::ValueTree state(apvts.state.getType());
+    const auto& defs = paramDefs();
+    for (int i = 0; i < pid::count; ++i) {
+        juce::ValueTree pt("PARAM");
+        pt.setProperty("id", juce::String(defs[(size_t) i].id), nullptr);
+        pt.setProperty("value", params[(size_t) i]->getValue(), nullptr);
+        state.appendChild(pt, nullptr);
+    }
     juce::ValueTree nfTree("NF");
     nfTree.setProperty("preset", presetName, nullptr);
     nfTree.setProperty("capNote", captureSettings.note, nullptr);
@@ -464,6 +497,15 @@ void NeuroforgeProcessor::setStateInformation(const void* data, int size)
     auto nfTree = tree.getChildWithName("NF");
     if (nfTree.isValid()) tree.removeChild(nfTree, nullptr);
     apvts.replaceState(tree);
+    // ...and set each parameter explicitly, in case the APVTS cache thought it was unchanged.
+    for (auto pt : tree) {
+        if (!pt.hasType("PARAM")) continue;
+        const int i = findParam(pt.getProperty("id").toString().toStdString());
+        if (i < 0) continue;
+        const float v = juce::jlimit(0.f, 1.f, (float) pt.getProperty("value", params[(size_t) i]->getValue()));
+        if (params[(size_t) i]->getValue() != v) params[(size_t) i]->setValueNotifyingHost(v);
+    }
+    stateWasRestored = true;
 
     if (nfTree.isValid()) {
         presetName = nfTree.getProperty("preset", "Init").toString();
@@ -483,6 +525,8 @@ void NeuroforgeProcessor::setStateInformation(const void* data, int size)
         }
         captureGeneration.fetch_add(1);
     }
+    // Tell the host every parameter may have new values (CLAP: params rescan; VST3: values changed).
+    updateHostDisplay(ChangeDetails().withProgramChanged(true));
     sendChangeMessage();
 }
 
