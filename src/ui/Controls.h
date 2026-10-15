@@ -34,7 +34,8 @@ public:
     void mouseDoubleClick(const juce::MouseEvent&) override;
     void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
     void mouseEnter(const juce::MouseEvent&) override { hover = true; repaint(); }
-    void mouseExit(const juce::MouseEvent&) override { hover = false; repaint(); }
+    void mouseExit(const juce::MouseEvent&) override { hover = false; hoverBadge = -1; overCircle = false; repaint(); }
+    void mouseMove(const juce::MouseEvent&) override;
     void tick() override;
 
     bool isInterestedInDragSource(const SourceDetails&) override;
@@ -44,13 +45,20 @@ public:
 
 private:
     void showMenu();
+    void showBadgeMenu(int badge);
+    bool hasBadgeRow() const;
+    juce::Rectangle<float> badgeArea() const;
+    juce::Rectangle<float> badgeRect(int i) const;
+    int badgeAt(juce::Point<float>) const;
     NeuroforgeProcessor& proc;
     int pid;
     juce::String label;
     std::function<juce::String(float)> fmt;
     std::unique_ptr<juce::ParameterAttachment> att;
     float value = 0.f, defNorm = 0.f, modOff = 0.f, dragStartVal = 0.f;
-    int dragStartY = 0, routeCount = 0, altRow = -1;
+    int dragStartY = 0, routeCount = 0, altRow = -1, hoverBadge = -1, badgeDrag = -1;
+    std::vector<NfModRoute> routes;   // modulation routes targeting this knob (refreshed in tick)
+    bool overCircle = false;
     bool bipolar = false, hover = false, dragging = false, dropHighlight = false, modulatable = false, discrete = false;
 };
 

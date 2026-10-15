@@ -35,9 +35,13 @@ enum Motion { mMode, mSync, mRate, mDiv, mShape, mDepth, mSteps, mGlide, mStep0,
 enum Pass { pOn, pMix, numPass };
 enum Slot { sType, sP1, sP2, sP3, sP4, sMix, sMotion, numSlot };
 enum MatrixSlot { mxSrc, mxDst, mxAmt, numMx };
+// Curve stepper (Massive "Performer"-style): up to 16 steps, each a curve shape with its own intensity.
+enum Stepper { stSync, stRate, stDiv, stSteps, stSmooth, stRetrig, stShape0, stAmt0 = stShape0 + 16,
+               numStepper = stAmt0 + 16 };
+constexpr int kStepperSteps = 16;
 
 constexpr int kNumEnvs = 3, kNumLfos = 4, kNumPasses = 3, kSlotsPerPass = 4,
-              kNumSlots = kNumPasses * kSlotsPerPass, kNumMacros = 8, kNumMatrix = 24;
+              kNumSlots = kNumPasses * kSlotsPerPass, kNumMacros = 8, kNumMatrix = 24, kNumSteppers = 2;
 
 // ---- block bases ----
 constexpr int oscA   = numGlobal;
@@ -53,7 +57,8 @@ constexpr int pass0  = motion0 + kNumPasses * numMotion; // pass i
 constexpr int slot0  = pass0 + kNumPasses * numPass;     // slot i (pass = i / 4)
 constexpr int macro0 = slot0 + kNumSlots * numSlot;      // macro i
 constexpr int mx0    = macro0 + kNumMacros;              // matrix slot i
-constexpr int count  = mx0 + kNumMatrix * numMx;
+constexpr int step0  = mx0 + kNumMatrix * numMx;         // stepper i (appended last: keeps older ids stable)
+constexpr int count  = step0 + kNumSteppers * numStepper;
 
 constexpr int osc(int which, int off)  { return (which == 0 ? oscA : oscB) + off; }
 constexpr int env(int i, int off)      { return env0 + i * numEnv + off; }
@@ -63,13 +68,16 @@ constexpr int pass(int i, int off)     { return pass0 + i * numPass + off; }
 constexpr int slot(int i, int off)     { return slot0 + i * numSlot + off; }
 constexpr int macro(int i)             { return macro0 + i; }
 constexpr int mx(int i, int off)       { return mx0 + i * numMx + off; }
+constexpr int stepper(int i, int off)  { return step0 + i * numStepper + off; }
 } // namespace pid
 
 // Modulation sources (index stored in matrix "src" param)
 enum class ModSrc : int {
     None = 0, Env1, Env2, Env3, Lfo1, Lfo2, Lfo3, Lfo4, Motion1, Motion2, Motion3,
     Macro1, Macro2, Macro3, Macro4, Macro5, Macro6, Macro7, Macro8,
-    Velocity, Note, ModWheel, PitchBend, Aftertouch, Random, NumSources
+    Velocity, Note, ModWheel, PitchBend, Aftertouch, Random,
+    Step1, Step2, // added in state version 2 (appended so older indices keep their meaning)
+    NumSources
 };
 bool modSrcIsVoice(ModSrc s);
 const std::vector<std::string>& modSrcNames();
@@ -80,6 +88,16 @@ double rateDivBeats(int index);
 
 enum class LfoShape : int { Sine, Triangle, SawUp, SawDown, Square, SampleHold, SmoothRandom, NumShapes };
 const std::vector<std::string>& lfoShapeNames();
+
+// Curve-stepper shape library. stepCurve(shape, t): t in [0,1) across one step -> value 0..1.
+const std::vector<std::string>& stepCurveNames();
+float stepCurve(int shape, float t);
+
+// Parameter-state versions. v1 had 25 modulation sources (None..Random); v2 added Step 1/2.
+constexpr int kStateVersion = 2;
+constexpr int kModSrcCountV1 = 25;
+bool isMatrixSourceParam(int id);
+float remapModSrcFromV1(float norm); // normalized src value saved by v1 -> current normalized value
 
 const std::vector<ParamDef>& paramDefs();              // size == pid::count
 const std::vector<int>& modDestinations();             // param indices usable as destinations (matrix dst choice i -> param)

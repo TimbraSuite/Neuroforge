@@ -350,4 +350,224 @@ void Meter::paint(juce::Graphics& g)
     draw(b.withTrimmedTop(h + 3.f), r);
 }
 
+//==============================================================================================
+static const juce::Colour cStep(0xffff5fa2);
+
+StepperEditor::StepperEditor(NeuroforgeProcessor& p, int idx) : proc(p), st(idx)
+{
+    setTooltip("Drag a curve onto a step. Drag up/down in a step for intensity. Wheel = next curve, "
+               "right-click = pick curve, double-click = full intensity.");
+}
+
+juce::Rectangle<float> StepperEditor::paletteArea() const { return getLocalBounds().toFloat().removeFromTop(26.f); }
+juce::Rectangle<float> StepperEditor::gridArea() const { return getLocalBounds().toFloat().withTrimmedTop(30.f); }
+
+int StepperEditor::numSteps() const
+{
+    const int id = pid::stepper(st, pid::stSteps);
+    return juce::jlimit(1, pid::kStepperSteps, (int) normToReal(id, proc.getRaw(id)));
+}
+int StepperEditor::shapeOf(int k) const
+{
+    const int id = pid::stepper(st, pid::stShape0 + k);
+    return (int) normToReal(id, proc.getRaw(id));
+}
+float StepperEditor::amountOf(int k) const { return proc.getRaw(pid::stepper(st, pid::stAmt0 + k)); }
+
+void StepperEditor::setNorm(int id, float v)
+{
+    auto* prm = proc.getParam(id);
+    prm->beginChangeGesture();
+    prm->setValueNotifyingHost(juce::jlimit(0.f, 1.f, v));
+    prm->endChangeGesture();
+}
+void StepperEditor::setShape(int k, int shape)
+{
+    const int id = pid::stepper(st, pid::stShape0 + k);
+    setNorm(id, realToNorm(id, (float) shape));
+}
+void StepperEditor::setAmount(int k, float a) { setNorm(pid::stepper(st, pid::stAmt0 + k), a); }
+
+int StepperEditor::paletteIndexAt(juce::Point<float> pt) const
+{
+    auto pa = paletteArea();
+    if (!pa.contains(pt)) return -1;
+    const int n = (int) stepCurveNames().size();
+    return juce::jlimit(0, n - 1, (int) ((pt.x - pa.getX()) / (pa.getWidth() / (float) n)));
+}
+int StepperEditor::stepAt(juce::Point<float> pt) const
+{
+    auto ga = gridArea();
+    if (pt.x < ga.getX() || pt.x >= ga.getRight()) return -1;
+    return juce::jlimit(0, pid::kStepperSteps - 1, (int) ((pt.x - ga.getX()) / (ga.getWidth() / (float) pid::kStepperSteps)));
+}
+
+void StepperEditor::drawCurve(juce::Graphics& g, juce::Rectangle<float> r, int shape, float amt, juce::Colour c, bool filled) const
+{
+    juce::Path path;
+    const int n = 32;
+    for (int i = 0; i <= n; ++i) {
+        const float t = (float) i / (float) n;
+        const float y = r.getBottom() - r.getHeight() * stepCurve(shape, t) * amt;
+        const float x = r.getX() + r.getWidth() * t;
+        if (i == 0) path.startNewSubPath(x, y); else path.lineTo(x, y);
+    }
+    if (filled) {
+        juce::Path f(path);
+        f.lineTo(r.getRight(), r.getBottom());
+        f.lineTo(r.getX(), r.getBottom());
+        f.closeSubPath();
+        g.setColour(c.withAlpha(0.18f));
+        g.fillPath(f);
+    }
+    g.setColour(c);
+    g.strokePath(path, juce::PathStrokeType(1.4f));
+}
+
+void StepperEditor::paint(juce::Graphics& g)
+{
+    // ---- palette ----
+    auto pa = paletteArea();
+    const int nc = (int) stepCurveNames().size();
+    const float cw = pa.getWidth() / (float) nc;
+    for (int i = 0; i < nc; ++i) {
+        auto cell = juce::Rectangle<float>(pa.getX() + cw * (float) i, pa.getY(), cw, pa.getHeight()).reduced(1.5f);
+        g.setColour(i == hoverCurve ? cPanel2.brighter(0.25f) : cPanel2);
+        g.fillRoundedRectangle(cell, 3.f);
+        drawCurve(g, cell.reduced(4.f, 5.f), i, 1.f, i == hoverCurve ? cText : cStep.withAlpha(0.85f), false);
+    }
+
+    // ---- grid ----
+    auto ga = gridArea();
+    g.setColour(juce::Colour(0xff0a0c0f));
+    g.fillRoundedRectangle(ga, 4.f);
+    const int steps = numSteps();
+    const float sw = ga.getWidth() / (float) pid::kStepperSteps;
+    const float ph = proc.getEngine().uiStepperPhase[st].load(std::memory_order_relaxed);
+    const int cur = juce::jlimit(0, steps - 1, (int) (ph * (float) steps));
+    const int dropCell = dragCurve >= 0 && ga.contains((float) dragPosX, (float) dragPosY) ? stepAt({ (float) dragPosX, (float) dragPosY }) : -1;
+    for (int k = 0; k < pid::kStepperSteps; ++k) {
+        auto cell = juce::Rectangle<float>(ga.getX() + sw * (float) k, ga.getY(), sw, ga.getHeight()).reduced(1.f, 3.f);
+        const bool on = k < steps;
+        if (on && k == cur) { g.setColour(cCyan.withAlpha(0.10f)); g.fillRect(cell); }
+        if (k == hoverCell || k == dropCell) { g.setColour(cText.withAlpha(0.08f)); g.fillRect(cell); }
+        drawCurve(g, cell.reduced(2.f, 2.f), shapeOf(k), amountOf(k), on ? cStep : cDim.withAlpha(0.35f), on);
+        if (k > 0) {
+            g.setColour(cEdge.withAlpha(k % 4 == 0 ? 0.9f : 0.45f));
+            g.drawVerticalLine((int) cell.getX() - 1, ga.getY() + 2.f, ga.getBottom() - 2.f);
+        }
+        if (k == selected) { g.setColour(cAccent.withAlpha(0.6f)); g.drawRect(cell, 1.f); }
+    }
+    g.setColour(cEdge);
+    g.drawRoundedRectangle(ga, 4.f, 1.f);
+    // live output level on the right edge
+    const float out = proc.getEngine().uiStepper[st].load(std::memory_order_relaxed);
+    g.setColour(cCyan);
+    g.fillRect(ga.getRight() - 3.f, ga.getBottom() - 2.f - (ga.getHeight() - 4.f) * out, 2.f, (ga.getHeight() - 4.f) * out);
+
+    // ---- curve being dragged ----
+    if (dragCurve >= 0) {
+        auto r = juce::Rectangle<float>(34.f, 24.f).withCentre({ (float) dragPosX, (float) dragPosY });
+        g.setColour(cPanel2.withAlpha(0.9f));
+        g.fillRoundedRectangle(r, 3.f);
+        drawCurve(g, r.reduced(4.f), dragCurve, 1.f, cText, false);
+    }
+    // name of the curve under the mouse
+    const int nameIdx = dragCurve >= 0 ? dragCurve : (hoverCurve >= 0 ? hoverCurve : (hoverCell >= 0 ? shapeOf(hoverCell) : -1));
+    if (nameIdx >= 0) {
+        juce::String txt(stepCurveNames()[(size_t) nameIdx]);
+        if (hoverCell >= 0 && dragCurve < 0 && hoverCurve < 0)
+            txt << "  " << juce::roundToInt(amountOf(hoverCell) * 100.f) << "%";
+        g.setColour(cText);
+        g.setFont(font(10.f, true));
+        g.drawText(txt, ga.reduced(6.f, 3.f).toNearestInt(), juce::Justification::topLeft);
+    }
+}
+
+void StepperEditor::mouseMove(const juce::MouseEvent& e)
+{
+    const int hc = paletteIndexAt(e.position), hs = paletteArea().contains(e.position) ? -1 : stepAt(e.position);
+    if (hc != hoverCurve || hs != hoverCell) { hoverCurve = hc; hoverCell = hs; repaint(); }
+}
+
+void StepperEditor::mouseDown(const juce::MouseEvent& e)
+{
+    const int pc = paletteIndexAt(e.position);
+    if (pc >= 0) { dragCurve = pc; dragPosX = e.x; dragPosY = e.y; repaint(); return; }
+    const int k = stepAt(e.position);
+    if (k < 0) return;
+    if (e.mods.isPopupMenu()) {
+        juce::PopupMenu m;
+        for (int i = 0; i < (int) stepCurveNames().size(); ++i)
+            m.addItem(i + 1, juce::String(stepCurveNames()[(size_t) i]), true, shapeOf(k) == i);
+        juce::Component::SafePointer<StepperEditor> sp(this);
+        m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this), [sp, k](int r) {
+            if (sp != nullptr && r > 0) sp->setShape(k, r - 1);
+        });
+        return;
+    }
+    selected = k;
+    draggingAmount = true;
+    lastPaint = -1;
+    mouseDrag(e);
+}
+
+void StepperEditor::mouseDrag(const juce::MouseEvent& e)
+{
+    if (dragCurve >= 0) { dragPosX = e.x; dragPosY = e.y; repaint(); return; }
+    if (!draggingAmount) return;
+    const int k = stepAt(e.position);
+    if (k < 0) return;
+    auto ga = gridArea().reduced(0.f, 5.f);
+    const float a = juce::jlimit(0.f, 1.f, (ga.getBottom() - e.position.y) / ga.getHeight());
+    setAmount(k, a);
+    // painting across steps fills the steps in between too
+    if (lastPaint >= 0 && std::abs(k - lastPaint) > 1)
+        for (int j = std::min(k, lastPaint) + 1; j < std::max(k, lastPaint); ++j) setAmount(j, a);
+    lastPaint = k;
+    hoverCell = k;
+    repaint();
+}
+
+void StepperEditor::mouseUp(const juce::MouseEvent& e)
+{
+    if (dragCurve >= 0) {
+        const int k = gridArea().contains(e.position) ? stepAt(e.position) : -1;
+        if (k >= 0) { setShape(k, dragCurve); selected = k; }
+        else if (paletteIndexAt(e.position) == dragCurve) setShape(selected, dragCurve); // a click applies to the selected step
+        dragCurve = -1;
+    }
+    draggingAmount = false;
+    repaint();
+}
+
+void StepperEditor::mouseDoubleClick(const juce::MouseEvent& e)
+{
+    const int k = paletteArea().contains(e.position) ? -1 : stepAt(e.position);
+    if (k >= 0) setAmount(k, 1.f);
+}
+
+void StepperEditor::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w)
+{
+    const int k = paletteArea().contains(e.position) ? -1 : stepAt(e.position);
+    if (k < 0 || w.deltaY == 0.f) return;
+    const int n = (int) stepCurveNames().size();
+    setShape(k, (shapeOf(k) + (w.deltaY > 0 ? n - 1 : 1)) % n);
+}
+
+void StepperEditor::tick()
+{
+    if (!isShowing()) return;
+    bool rep = false;
+    for (int k = 0; k < pid::kStepperSteps; ++k) {
+        const float a = proc.getRaw(pid::stepper(st, pid::stShape0 + k)), b = proc.getRaw(pid::stepper(st, pid::stAmt0 + k));
+        if (a != cache[(size_t) k] || b != cache[(size_t) (16 + k)]) { cache[(size_t) k] = a; cache[(size_t) (16 + k)] = b; rep = true; }
+    }
+    const float s = proc.getRaw(pid::stepper(st, pid::stSteps));
+    if (s != lastSteps) { lastSteps = s; rep = true; }
+    const float ph = proc.getEngine().uiStepperPhase[st].load(std::memory_order_relaxed);
+    if (std::abs(ph - lastPhase) > 0.003f) { lastPhase = ph; rep = true; }
+    if (rep) repaint();
+}
+
 } // namespace nfui

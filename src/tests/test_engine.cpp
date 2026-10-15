@@ -126,3 +126,68 @@ NF_TEST(engine_sub_is_mono_and_low_guard_splits)
     NF_INFO("sub side/mid %.1f dB\n", ratioDb);
     NF_CHECK(ratioDb < -20);
 }
+
+NF_TEST(stepper_curves_stay_in_range)
+{
+    for (int s = 0; s < (int) stepCurveNames().size(); ++s)
+        for (int i = 0; i <= 100; ++i) {
+            const float v = stepCurve(s, i / 100.f);
+            NF_CHECK(v >= -1e-6f && v <= 1.f + 1e-6f);
+        }
+}
+
+NF_TEST(stepper_runs_and_follows_its_pattern)
+{
+    ParamState st = generatePatch(Archetype::Reese, 1);
+    using namespace pid;
+    // 4 steps of 1/16: hold 1, off, hold 0.5, off
+    st.setReal(stepper(0, stSteps), 4);
+    st.setReal(stepper(0, stSmooth), 0);
+    const int shapes[4] = { 1, 0, 1, 0 };
+    const float amts[4] = { 1.f, 1.f, 0.5f, 1.f };
+    for (int k = 0; k < 4; ++k) { st.setReal(stepper(0, stShape0 + k), (float) shapes[k]); st[stepper(0, stAmt0 + k)] = amts[k]; }
+    Engine e; e.prepare(48000, 256);
+    Transport t; t.bpm = 120; t.playing = false; // 1/16 at 120 BPM = 125 ms = 6000 samples
+    std::vector<float> L(256), R(256);
+    MidiEvent on { 0, 0x90, 29, 100 };
+    std::vector<float> seen;
+    for (int b = 0; b < 100; ++b) { // 25600 samples, ~4.3 steps
+        e.render(L.data(), R.data(), 256, st.v.data(), b == 0 ? &on : nullptr, b == 0 ? 1 : 0, t);
+        seen.push_back(e.uiStepper[0].load());
+    }
+    // block 10 (~2560 smp) -> step 1 = 1.0 ; block 35 (~8960) -> step 2 = 0 ; block 60 (~15360) -> step 3 = 0.5
+    NF_CHECK_NEAR(seen[10], 1.0, 1e-3);
+    NF_CHECK_NEAR(seen[35], 0.0, 1e-3);
+    NF_CHECK_NEAR(seen[60], 0.5, 1e-3);
+}
+
+NF_TEST(stepper_modulates_a_destination)
+{
+    using namespace pid;
+    ParamState st = generatePatch(Archetype::Reese, 1);
+    auto quiet = renderNote(st, 24000);
+    // route Step 1 -> master gain down by a lot
+    const auto& dsts = modDestinations();
+    int c = 0; for (int i = 1; i < (int) dsts.size(); ++i) if (dsts[(size_t) i] == masterGain) c = i;
+    for (int x = 0; x < kNumMatrix; ++x)
+        if (st.real(mx(x, mxSrc)) == 0) { st.setReal(mx(x, mxSrc), (float) (int) ModSrc::Step1); st.setReal(mx(x, mxDst), (float) c); st.setReal(mx(x, mxAmt), -0.6f); break; }
+    auto mod = renderNote(st, 24000);
+    NF_INFO("rms plain %.3f, with stepper %.3f\n", rms(quiet.L), rms(mod.L));
+    NF_CHECK(rms(mod.L) < rms(quiet.L) * 0.9);
+}
+
+NF_TEST(compat_v1_presets_keep_their_mod_sources)
+{
+    using namespace pid;
+    // A v1 file (no version line) stored sources normalized over 25 entries: Motion 2 = index 9 -> 9/24
+    std::string v1 = "mx1_src " + std::to_string(9.0f / 24.0f) + "\nmx2_src " + std::to_string(24.0f / 24.0f) + "\n";
+    ParamState a;
+    NF_CHECK(a.fromText(v1));
+    NF_CHECK((int) a.real(mx(0, mxSrc)) == (int) ModSrc::Motion2);
+    NF_CHECK((int) a.real(mx(1, mxSrc)) == (int) ModSrc::Random);
+    // and the current format round-trips every source, including the new ones
+    a.setReal(mx(2, mxSrc), (float) (int) ModSrc::Step2);
+    ParamState b;
+    NF_CHECK(b.fromText(a.toText()));
+    for (int x = 0; x < 3; ++x) NF_CHECK((int) b.real(mx(x, mxSrc)) == (int) a.real(mx(x, mxSrc)));
+}

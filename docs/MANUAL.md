@@ -13,7 +13,7 @@ You can have a mix-ready neuro bass in about two minutes: pick an archetype, pre
 3. Pick an archetype in the dropdown next to **FORGE** (for example *FM Growl*) and click **FORGE**. Each click makes a new variation at a consistent loudness.
 4. Turn the eight **MACROS** (bottom left). Start with GROWL, TALK and GRIT.
 5. Like it but want a sibling? Set the slider under **MUTATE** (subtle, medium or wild) and click **MUTATE**. Didn't like the result? Click **UNDO**.
-6. Click **Save** to keep it. User presets appear under *User* in the preset menu.
+6. Click **Save** to keep it. User presets appear under *User* in the preset menu. **INIT** (next to Save) starts from a fresh, empty patch.
 7. Going deeper: click **NEXT GEN** to resample the sound into a wavetable and process it again. See [Capture and Next Gen](#capture-and-next-gen).
 
 The factory presets are in the menu that opens when you click the preset name. Use the **<** and **>** arrows to step through them.
@@ -30,12 +30,12 @@ The window has six areas, laid out in the order the sound travels: source on the
 
 | Area | Where | What it is for |
 | --- | --- | --- |
-| Top bar | Top | Presets, Save, archetype + FORGE, MUTATE, UNDO, CAPTURE, NEXT GEN, capture settings (**...**), quality (1x/2x/4x), Master gain and the output meter |
+| Top bar | Top | Presets, Save, INIT (fresh empty patch), archetype + FORGE, MUTATE, UNDO, CAPTURE, NEXT GEN, capture settings (**...**), quality (1x/2x/4x), Master gain and the output meter |
 | Source | Left | Tabs OSC A, OSC B, FM OP, SUB+NZ and FILTER: everything that makes the raw sound, per voice |
 | The Forge | Middle | Three passes, each with its own Motion and up to four FX slots |
 | Output | Right | Low Guard, Sub Warmth, Sub Level, Mid Level, Mid Width, Master Clip, plus an oscilloscope and spectrum |
 | Macros | Bottom left | Eight big knobs: GROWL, TALK, GRIT, METAL, MOTION, WIDTH, SUB, TONE |
-| Modulation | Bottom | Tabs ENVELOPES, LFOS and MATRIX, plus the row of draggable source chips (ENV, LFO, MOT, VEL, NOTE, MW, PB, AT, RND) |
+| Modulation | Bottom | Tabs ENVELOPES, LFOS, STEPPER and MATRIX, plus the row of draggable source chips (ENV, LFO, MOT, VEL, NOTE, MW, PB, AT, RND, STP) |
 
 Knobs work the same everywhere:
 
@@ -44,7 +44,7 @@ Knobs work the same everywhere:
 - Hover or drag to see the exact value.
 - A thin **cyan ring** around a knob shows live modulation. A small dot means at least one modulation route targets it.
 - **Right-click** for: remove modulation from a source, reset, and *Assign to Macro*.
-- **Alt-drag** changes the amount of the knob's first modulation route.
+- **Modulation badges:** every modulation route on a knob shows as a small coloured badge under it (E1 = Env 1, L2 = LFO 2, MO1 = Motion 1, M3 = Macro 3, S1 = Step 1, …) and as a coloured arc around the knob showing how far it moves. **Drag a badge up or down** to set the amount, **double-click** it to remove the route, **right-click** it to invert. A white dot shows the live, modulated position.
 
 You can resize the window from the bottom-right corner; the whole interface scales.
 
@@ -213,6 +213,16 @@ Anything with a knob can move. The quickest way is to **drag a source chip onto 
 | VEL, NOTE | per note | Velocity and keyboard position |
 | MW, PB, AT | controller | Mod wheel, pitch bend, aftertouch |
 | RND | per note | A new random value on every note |
+| STP 1, STP 2 | 0 to 1 | The two curve steppers (see below) |
+
+### Curve stepper
+
+The **STEPPER** tab holds two curve sequencers, STEP 1 and STEP 2, in the style of Massive's Performer. Each has up to 16 steps, and every step plays a **curve shape** at its own **intensity**.
+
+- **Pick a curve:** drag one of the 20 shapes from the palette (ramps, exp/log, hump, pulse, spike, bounce, trill, stairs, wobble, …) onto a step. Or select a step, then click a curve. The mouse wheel on a step cycles its curve; right-click picks one from a list.
+- **Set intensity:** drag up or down inside a step. Drag sideways to paint several steps at once. Double-click a step for full intensity.
+- **Steps** sets the pattern length, the **step length** (Sync on, e.g. 1/16) or **Rate** (Sync off, Hz) sets the speed, **Smooth** rounds off jumps between steps, and **Retrig** restarts the pattern on each note.
+- Drag the **STP 1 / STP 2** chip onto any knob to use it. A stepper on a filter cutoff, formant vowel or FM amount gives detailed, rhythmic talking that an LFO can't.
 
 **Looping envelopes** are the secret to self-moving FM basses. A looped Env 3 with Attack 40 ms and Decay 130 ms repeats about every 1/8 note at 174 BPM. Route it to an FM Op amount, a wavetable Position or a filter cutoff.
 

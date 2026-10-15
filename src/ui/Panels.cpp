@@ -529,7 +529,7 @@ std::unique_ptr<Page> makeMatrixRow(NeuroforgeProcessor& p, int x)
 std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
 {
     auto root = std::make_unique<Page>();
-    auto* tabs = root->make<TabHost>(24, 84);
+    auto* tabs = root->make<TabHost>(24, 80);
 
     // ---- envelopes ----
     {
@@ -610,6 +610,71 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
             for (size_t i = 0; i < cols.size(); ++i) cols[i]->setBounds(r.getX() + (int) i * w + 4, r.getY(), w - 8, r.getHeight());
         };
     }
+    // ---- curve steppers ----
+    {
+        Page* pg = tabs->addTab("STEPPER");
+        auto* pick1 = pg->make<juce::TextButton>("STEP 1");
+        auto* pick2 = pg->make<juce::TextButton>("STEP 2");
+        std::vector<Page*> sets;
+        for (int st = 0; st < pid::kNumSteppers; ++st) {
+            auto* c = pg->make<Page>();
+            auto S = [st](int off) { return pid::stepper(st, off); };
+            auto* chip = c->make<ModChip>(p, (int) ModSrc::Step1 + st, "STEP " + juce::String(st + 1));
+            auto* sync = c->make<ParamToggle>(p, S(pid::stSync), "Sync");
+            auto* retrig = c->make<ParamToggle>(p, S(pid::stRetrig), "Retrig");
+            auto* div = c->make<ParamCombo>(p, S(pid::stDiv));
+            auto* rate = c->make<ParamBar>(p, S(pid::stRate), "Rate");
+            auto* steps = c->make<ParamBar>(p, S(pid::stSteps), "Steps");
+            auto* smooth = c->make<ParamBar>(p, S(pid::stSmooth), "Smooth");
+            auto* editor = c->make<StepperEditor>(p, st);
+            div->setTooltip("Length of one step");
+            auto synced = std::make_shared<bool>(true);
+            sync->onToggled = [synced, c](bool b) { *synced = b; c->resized(); };
+            *synced = sync->getToggleState();
+            c->layout = [=](juce::Rectangle<int> r) {
+                auto left = r.removeFromLeft(168);
+                r.removeFromLeft(8);
+                chip->setBounds(left.removeFromTop(20).withWidth(80));
+                left.removeFromTop(4);
+                auto row = left.removeFromTop(20);
+                sync->setBounds(row.removeFromLeft(70));
+                retrig->setBounds(row);
+                left.removeFromTop(4);
+                div->setVisible(*synced);
+                rate->setVisible(!*synced);
+                div->setBounds(left.removeFromTop(22));
+                rate->setBounds(div->getBounds().withHeight(18));
+                left.removeFromTop(4);
+                steps->setBounds(left.removeFromTop(18));
+                left.removeFromTop(4);
+                smooth->setBounds(left.removeFromTop(18));
+                editor->setBounds(r);
+            };
+            sets.push_back(c);
+        }
+        auto show = std::make_shared<std::function<void(int)>>();
+        *show = [sets, pick1, pick2](int i) {
+            for (size_t k = 0; k < sets.size(); ++k) sets[k]->setVisible((int) k == i);
+            pick1->setToggleState(i == 0, juce::dontSendNotification);
+            pick2->setToggleState(i == 1, juce::dontSendNotification);
+        };
+        for (auto* b : { pick1, pick2 }) {
+            b->setClickingTogglesState(false);
+            b->setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffff5fa2));
+            b->setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+        }
+        pick1->onClick = [show] { (*show)(0); };
+        pick2->onClick = [show] { (*show)(1); };
+        (*show)(0);
+        pg->layout = [=](juce::Rectangle<int> r) {
+            auto top = r.removeFromTop(20);
+            pick1->setBounds(top.removeFromLeft(80));
+            top.removeFromLeft(4);
+            pick2->setBounds(top.removeFromLeft(80));
+            r.removeFromTop(4);
+            for (auto* s : sets) s->setBounds(r);
+        };
+    }
     // ---- matrix ----
     {
         Page* pg = tabs->addTab("MATRIX");
@@ -644,7 +709,7 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
     root->layout = [=](juce::Rectangle<int> r) {
         r = r.reduced(8, 6);
         tabs->setBounds(r);
-        auto strip = r.removeFromTop(24).withTrimmedLeft(3 * 88 + 8);
+        auto strip = r.removeFromTop(24).withTrimmedLeft(4 * 84 + 8);
         const int cw = strip.getWidth() / (int) chips.size();
         for (size_t i = 0; i < chips.size(); ++i)
             chips[i]->setBounds(strip.getX() + (int) i * cw + 1, strip.getY() + 1, cw - 2, 22);
@@ -742,6 +807,7 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     next = make<juce::TextButton>(">");
     presetBtn = make<juce::TextButton>(p.presetName);
     saveBtn = make<juce::TextButton>("Save");
+    initBtn = make<juce::TextButton>("INIT");
     archetype = make<juce::ComboBox>();
     forge = make<juce::TextButton>("FORGE");
     mutate = make<juce::TextButton>("MUTATE");
@@ -798,6 +864,8 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     presetBtn->onClick = [this] { showPresetMenu(); };
     presetBtn->setColour(juce::TextButton::buttonColourId, cPanel2);
     saveBtn->onClick = [this] { showSaveDialog(); };
+    initBtn->setTooltip("Start a fresh, empty patch (UNDO brings the old one back)");
+    initBtn->onClick = [this] { proc.initPatch(); };
 
     painter = [this](juce::Graphics& g) {
         paintPanel(g, getLocalBounds());
@@ -807,9 +875,10 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     layout = [=](juce::Rectangle<int>) {
         const int y1 = 6, h1 = 22;
         prev->setBounds(176, y1, 22, h1);
-        presetBtn->setBounds(200, y1, 190, h1);
-        next->setBounds(392, y1, 22, h1);
-        saveBtn->setBounds(418, y1, 46, h1);
+        presetBtn->setBounds(200, y1, 150, h1);
+        next->setBounds(352, y1, 22, h1);
+        saveBtn->setBounds(378, y1, 46, h1);
+        initBtn->setBounds(428, y1, 46, h1);
         archetype->setBounds(484, y1, 104, h1);
         forge->setBounds(592, y1, 74, 34);
         mutate->setBounds(690, y1, 70, h1);

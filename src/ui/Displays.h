@@ -98,4 +98,42 @@ private:
     float l = 0.f, r = 0.f;
 };
 
+//==============================================================================================
+// Curve stepper editor: a palette of curve shapes above a grid of steps.
+//  * drag a curve from the palette onto a step (or select a step, then click a curve)
+//  * drag up/down inside a step to set its intensity (drag sideways to paint several steps)
+//  * mouse wheel on a step cycles its curve, right-click picks one from a menu, double-click = full
+class StepperEditor : public juce::Component, public juce::SettableTooltipClient, public Tickable {
+public:
+    StepperEditor(NeuroforgeProcessor& p, int stepperIndex);
+    void paint(juce::Graphics&) override;
+    void mouseDown(const juce::MouseEvent&) override;
+    void mouseDrag(const juce::MouseEvent&) override;
+    void mouseUp(const juce::MouseEvent&) override;
+    void mouseDoubleClick(const juce::MouseEvent&) override;
+    void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+    void mouseMove(const juce::MouseEvent&) override;
+    void mouseExit(const juce::MouseEvent&) override { hoverCell = hoverCurve = -1; repaint(); }
+    void tick() override;
+private:
+    juce::Rectangle<float> paletteArea() const;
+    juce::Rectangle<float> gridArea() const;
+    int paletteIndexAt(juce::Point<float>) const;
+    int stepAt(juce::Point<float>) const;
+    int numSteps() const;
+    int shapeOf(int step) const;
+    float amountOf(int step) const;
+    void setNorm(int paramId, float norm);
+    void setShape(int step, int shape);
+    void setAmount(int step, float amt);
+    void drawCurve(juce::Graphics&, juce::Rectangle<float> r, int shape, float amt, juce::Colour c, bool filled) const;
+
+    NeuroforgeProcessor& proc;
+    int st;
+    std::array<float, 32> cache {};
+    float lastPhase = -1.f, lastSteps = -1.f;
+    int dragCurve = -1, dragPosX = 0, dragPosY = 0, hoverCell = -1, hoverCurve = -1, selected = 0, lastPaint = -1;
+    bool draggingAmount = false;
+};
+
 } // namespace nfui

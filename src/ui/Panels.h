@@ -96,7 +96,7 @@ private:
     void showSaveDialog();
     void showCaptureSettings();
     NeuroforgeProcessor& proc;
-    juce::TextButton *prev = nullptr, *next = nullptr, *presetBtn = nullptr, *saveBtn = nullptr, *forge = nullptr,
+    juce::TextButton *prev = nullptr, *next = nullptr, *presetBtn = nullptr, *saveBtn = nullptr, *initBtn = nullptr, *forge = nullptr,
                      *mutate = nullptr, *undo = nullptr, *capture = nullptr, *nextGen = nullptr, *capSet = nullptr;
     juce::ComboBox* archetype = nullptr;
     Bar* mutAmt = nullptr;

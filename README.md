@@ -44,7 +44,8 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
   - 11 warp modes.
 - **Modulation:**
   - Looping envelopes, for Noisia-style self-moving FM.
-  - 4 LFOs, 24 matrix slots and drag-to-modulate on every knob.
+  - 4 LFOs, 2 **curve steppers** (16 steps, a drawable curve shape and intensity per step), 24 matrix slots.
+  - Drag-to-modulate on every knob, with coloured **modulation badges** you drag to set the amount, and range arcs on the knob.
 - 2x/4x internal oversampling with linear-phase decimation.
 
 ## Install (beta)

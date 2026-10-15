@@ -486,6 +486,7 @@ void NeuroforgeProcessor::getStateInformation(juce::MemoryBlock& dest)
     // Write every parameter's live value ourselves: some wrappers (e.g. CLAP) change parameters
     // without notifying APVTS listeners, which would leave a stale copy in apvts.state.
     juce::ValueTree state(apvts.state.getType());
+    state.setProperty("nfVersion", kStateVersion, nullptr);
     const auto& defs = paramDefs();
     for (int i = 0; i < pid::count; ++i) {
         juce::ValueTree pt("PARAM");
@@ -523,11 +524,13 @@ void NeuroforgeProcessor::setStateInformation(const void* data, int size)
     if (nfTree.isValid()) tree.removeChild(nfTree, nullptr);
     apvts.replaceState(tree);
     // ...and set each parameter explicitly, in case the APVTS cache thought it was unchanged.
+    const int version = tree.getProperty("nfVersion", 1); // projects saved before versioning are v1
     for (auto pt : tree) {
         if (!pt.hasType("PARAM")) continue;
         const int i = findParam(pt.getProperty("id").toString().toStdString());
         if (i < 0) continue;
-        const float v = juce::jlimit(0.f, 1.f, (float) pt.getProperty("value", params[(size_t) i]->getValue()));
+        float v = juce::jlimit(0.f, 1.f, (float) pt.getProperty("value", params[(size_t) i]->getValue()));
+        if (version < 2 && isMatrixSourceParam(i)) v = remapModSrcFromV1(v); // v2 appended Step 1/2 sources
         if (params[(size_t) i]->getValue() != v) params[(size_t) i]->setValueNotifyingHost(v);
     }
     stateWasRestored = true;

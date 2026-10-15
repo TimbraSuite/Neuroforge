@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <sstream>
+#include <vector>
 #include <unordered_map>
 
 namespace nf {
@@ -190,6 +191,27 @@ std::vector<ParamDef> buildDefs()
         set(mx(x, mxAmt), p + "amt", n + "Amount", -1.f, 1.f, 0.f);
         d[(size_t) mx(x, mxAmt)].modulatable = false;
     }
+    // ---- curve steppers ----
+    for (int st = 0; st < kNumSteppers; ++st) {
+        std::string p = "st" + std::to_string(st + 1) + "_", n = "Step " + std::to_string(st + 1) + " ";
+        auto S = [&](int off) { return stepper(st, off); };
+        toggle(S(stSync), p + "sync", n + "Sync", true);
+        set(S(stRate), p + "rate", n + "Rate", 0.1f, 40.f, 8.f, Curve::Log, "Hz");
+        choice(S(stDiv), p + "div", n + "Step Length", rateDivNames(), 13); // 1/16 per step
+        set(S(stSteps), p + "steps", n + "Steps", 1.f, (float) kStepperSteps, 8.f, Curve::Disc);
+        set(S(stSmooth), p + "smooth", n + "Smooth", 0.f, 1.f, 0.1f);
+        toggle(S(stRetrig), p + "retrig", n + "Retrigger", true);
+        // a musical default pattern so a fresh stepper does something useful straight away
+        static const int defShapes[2][16] = { { 3, 5, 3, 13, 3, 5, 9, 15, 3, 5, 3, 13, 11, 5, 9, 16 },
+                                              { 9, 9, 10, 9, 14, 9, 10, 19, 9, 9, 10, 9, 14, 9, 12, 18 } };
+        for (int k = 0; k < kStepperSteps; ++k) {
+            choice(S(stShape0 + k), p + "shape" + std::to_string(k + 1), n + "Curve " + std::to_string(k + 1),
+                   stepCurveNames(), defShapes[st][k]);
+            set(S(stAmt0 + k), p + "amt" + std::to_string(k + 1), n + "Intensity " + std::to_string(k + 1), 0.f, 1.f,
+                (k % 4 == 0) ? 1.f : 0.75f);
+        }
+        for (int k = 0; k < numStepper; ++k) d[(size_t) S(k)].modulatable = false; // keeps the destination list stable
+    }
     return d;
 }
 
@@ -270,7 +292,8 @@ const std::vector<std::string>& modSrcNames()
         std::vector<std::string> r = { "None", "Env 1", "Env 2", "Env 3", "LFO 1", "LFO 2", "LFO 3", "LFO 4",
                                        "Motion 1", "Motion 2", "Motion 3" };
         for (int i = 1; i <= 8; ++i) r.push_back("Macro " + std::to_string(i));
-        for (auto s : { "Velocity", "Note", "Mod Wheel", "Pitch Bend", "Aftertouch", "Random" }) r.push_back(s);
+        for (auto s : { "Velocity", "Note", "Mod Wheel", "Pitch Bend", "Aftertouch", "Random", "Step 1", "Step 2" })
+            r.push_back(s);
         return r;
     }();
     return n;
@@ -294,6 +317,55 @@ const std::vector<std::string>& rateDivNames()
 }
 double rateDivBeats(int i) { return kDivs[std::clamp(i, 0, (int) (sizeof(kDivs) / sizeof(kDivs[0])) - 1)].beats; }
 
+const std::vector<std::string>& stepCurveNames()
+{
+    static const std::vector<std::string> n = { "Off", "Hold", "Ramp Up", "Ramp Down", "Exp Up", "Exp Down",
+                                                "Log Up", "Log Down", "Triangle", "Hump", "S-Curve", "Pulse",
+                                                "Spike", "Bounce", "Double", "Trill", "Stairs Up", "Stairs Down",
+                                                "Saw x2", "Wobble" };
+    return n;
+}
+
+float stepCurve(int shape, float t)
+{
+    t = std::clamp(t, 0.f, 0.99999f); // a step covers [0,1)
+    const float pi = 3.14159265f;
+    switch (shape) {
+        case 0:  return 0.f;                                             // Off
+        case 1:  return 1.f;                                             // Hold
+        case 2:  return t;                                               // Ramp Up
+        case 3:  return 1.f - t;                                         // Ramp Down
+        case 4:  return t * t * t;                                       // Exp Up
+        case 5:  { float u = 1.f - t; return u * u * u; }                // Exp Down
+        case 6:  { float u = 1.f - t; return 1.f - u * u * u; }          // Log Up
+        case 7:  return 1.f - t * t * t;                                 // Log Down
+        case 8:  return t < 0.5f ? 2.f * t : 2.f - 2.f * t;              // Triangle
+        case 9:  return std::sin(pi * t);                                // Hump
+        case 10: return t * t * (3.f - 2.f * t);                         // S-Curve
+        case 11: return t < 0.5f ? 1.f : 0.f;                            // Pulse
+        case 12: return std::exp(-7.f * t);                              // Spike
+        case 13: return std::abs(std::sin(2.f * pi * t)) * (1.f - 0.6f * t); // Bounce
+        case 14: return std::abs(std::sin(2.f * pi * t));                // Double
+        case 15: { float u = std::fmod(t * 4.f, 1.f); return u < 0.5f ? 2.f * u : 2.f - 2.f * u; } // Trill
+        case 16: return std::floor(t * 4.f) / 3.f;                       // Stairs Up
+        case 17: return 1.f - std::floor(t * 4.f) / 3.f;                 // Stairs Down
+        case 18: return 1.f - std::fmod(t * 2.f, 1.f);                   // Saw x2
+        case 19: return 0.5f + 0.5f * std::sin(2.f * pi * 3.f * t) * (1.f - t); // Wobble
+        default: return 0.f;
+    }
+}
+
+bool isMatrixSourceParam(int id)
+{
+    return id >= pid::mx0 && id < pid::mx0 + pid::kNumMatrix * pid::numMx && (id - pid::mx0) % pid::numMx == pid::mxSrc;
+}
+
+float remapModSrcFromV1(float norm)
+{
+    const int idx = (int) std::lround(std::clamp(norm, 0.f, 1.f) * (float) (kModSrcCountV1 - 1));
+    return realToNorm(pid::mx(0, pid::mxSrc), (float) idx);
+}
+
 const std::vector<std::string>& lfoShapeNames()
 {
     static const std::vector<std::string> n = { "Sine", "Triangle", "Saw Up", "Saw Down", "Square", "S&H", "Smooth Rand" };
@@ -310,6 +382,7 @@ ParamState::ParamState()
 std::string ParamState::toText() const
 {
     std::ostringstream os;
+    os << "nf_version " << kStateVersion << '\n';
     const auto& d = paramDefs();
     for (size_t i = 0; i < d.size(); ++i) {
         bool isDst = false;
@@ -318,6 +391,8 @@ std::string ParamState::toText() const
             int c = (int) normToReal(d[i], v[i]);
             int target = modDestinations()[(size_t) std::clamp(c, 0, (int) modDestinations().size() - 1)];
             os << d[i].id << " @" << (target < 0 ? "none" : d[(size_t) target].id) << '\n';
+        } else if (isMatrixSourceParam((int) i)) { // sources by index: new sources are only ever appended
+            os << d[i].id << " #" << (int) normToReal(d[i], v[i]) << '\n';
         } else {
             os << d[i].id << ' ' << v[i] << '\n';
         }
@@ -329,19 +404,29 @@ bool ParamState::fromText(const std::string& text)
 {
     *this = ParamState();
     std::istringstream is(text);
+    std::vector<std::pair<std::string, std::string>> lines;
     std::string id, val;
+    int version = 1; // files without a version line come from v1
+    while (is >> id >> val) {
+        if (id == "nf_version") version = std::atoi(val.c_str());
+        else lines.emplace_back(id, val);
+    }
     bool any = false;
     const auto& dst = modDestinations();
-    while (is >> id >> val) {
-        int i = findParam(id);
+    for (auto& [pidStr, value] : lines) {
+        int i = findParam(pidStr);
         if (i < 0) continue;
         any = true;
-        if (!val.empty() && val[0] == '@') {
-            int target = findParam(val.substr(1)), choiceIdx = 0;
+        if (!value.empty() && value[0] == '@') {
+            int target = findParam(value.substr(1)), choiceIdx = 0;
             for (int c = 1; c < (int) dst.size(); ++c) if (dst[(size_t) c] == target) choiceIdx = c;
             v[(size_t) i] = realToNorm(i, (float) choiceIdx);
+        } else if (!value.empty() && value[0] == '#') {
+            v[(size_t) i] = realToNorm(i, (float) std::atoi(value.c_str() + 1));
         } else {
-            v[(size_t) i] = std::clamp(std::strtof(val.c_str(), nullptr), 0.f, 1.f);
+            float f = std::clamp(std::strtof(value.c_str(), nullptr), 0.f, 1.f);
+            if (version < 2 && isMatrixSourceParam(i)) f = remapModSrcFromV1(f);
+            v[(size_t) i] = f;
         }
     }
     return any;

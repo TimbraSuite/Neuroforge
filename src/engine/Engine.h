@@ -69,6 +69,7 @@ public:
     // For UI metering/visualisation (written on the audio thread).
     std::atomic<float> uiLfo[pid::kNumLfos] {}, uiMotion[pid::kNumPasses] {}, uiEnv[3] {};
     std::atomic<float> uiLfoPhase[pid::kNumLfos] {}, uiMotionPhase[pid::kNumPasses] {}; // 0..1 cycle position
+    std::atomic<float> uiStepper[pid::kNumSteppers] {}, uiStepperPhase[pid::kNumSteppers] {};
     std::atomic<float> uiOffsets[pid::count] {}; // last global modulation offsets for knob rings
 
     // Seed for deterministic renders.
@@ -104,7 +105,8 @@ private:
     // modulation state
     Oscillation lfo[pid::kNumLfos];
     Motion motion[pid::kNumPasses];
-    float lfoVal[pid::kNumLfos] {}, motionVal[pid::kNumPasses] {};
+    Oscillation stepperOsc[pid::kNumSteppers];
+    float lfoVal[pid::kNumLfos] {}, motionVal[pid::kNumPasses] {}, stepperVal[pid::kNumSteppers] {};
     float modWheel = 0, pitchBend = 0, aftertouch = 0;
     float globalOff[pid::count] {};
     struct ActiveSlot { ModSrc src; int dst; float amt; bool voiceSrc; bool voiceDst; };

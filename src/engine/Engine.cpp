@@ -60,6 +60,7 @@ void Engine::reset()
     guardSplit.reset(); midClean.reset(); subLp.reset();
     for (int i = 0; i < pid::kNumLfos; ++i) lfo[i].reset(0.f, seed + (uint32_t) i * 7919u);
     for (int i = 0; i < pid::kNumPasses; ++i) motion[i].reset(seed + 101u + (uint32_t) i);
+    for (int i = 0; i < pid::kNumSteppers; ++i) { stepperOsc[i].reset(0.f, seed + 211u + (uint32_t) i); stepperVal[i] = 0.f; }
     noteStack.clear();
     newest = nullptr;
 }
@@ -152,6 +153,10 @@ void Engine::render(float* outL, float* outR, int n, const float* p, const MidiE
         uiLfoPhase[i].store((float) lfo[i].getPhase(), std::memory_order_relaxed);
     }
     for (int i = 0; i < pid::kNumPasses; ++i) uiMotionPhase[i].store((float) motion[i].osc.getPhase(), std::memory_order_relaxed);
+    for (int i = 0; i < pid::kNumSteppers; ++i) {
+        uiStepper[i].store(stepperVal[i], std::memory_order_relaxed);
+        uiStepperPhase[i].store((float) stepperOsc[i].getPhase(), std::memory_order_relaxed);
+    }
     for (int i = 0; i < pid::kNumPasses; ++i) uiMotion[i].store(motionVal[i], std::memory_order_relaxed);
     if (newest) {
         uiEnv[0].store(newest->amp.get(), std::memory_order_relaxed);
@@ -238,6 +243,8 @@ void Engine::noteOn(int note, float vel, const float* p)
     for (int i = 0; i < pid::kNumLfos; ++i)
         if (val(p, pid::lfo(i, pid::lRetrig)) > 0.5f) lfo[i].reset(val(p, pid::lfo(i, pid::lPhase)), r.next());
     for (int i = 0; i < pid::kNumPasses; ++i) motion[i].reset(seed + 101u + (uint32_t) i);
+    for (int i = 0; i < pid::kNumSteppers; ++i)
+        if (val(p, pid::stepper(i, pid::stRetrig)) > 0.5f) stepperOsc[i].reset(0.f, seed + 211u + (uint32_t) i);
 }
 
 void Engine::noteOff(int note, const float* p)
@@ -274,6 +281,7 @@ float Engine::sourceValue(ModSrc s, const Voice* v) const
         case ModSrc::PitchBend: return pitchBend;
         case ModSrc::Aftertouch: return aftertouch;
         case ModSrc::Random: return v ? v->random : 0.f;
+        case ModSrc::Step1: case ModSrc::Step2: return stepperVal[(int) s - (int) ModSrc::Step1];
         default: return 0.f; // macros handled by caller
     }
 }
@@ -301,6 +309,26 @@ void Engine::computeGlobalSources(const float* p, double seconds, const Transpor
         motionVal[m] = motion[m].update(steps, (int) normToReal(P(pid::mSteps), p[P(pid::mSteps)]), stepsMode,
                                         (LfoShape) (int) normToReal(P(pid::mShape), p[P(pid::mShape)]),
                                         val(p, P(pid::mGlide)), seconds, hz);
+    }
+    for (int st = 0; st < pid::kNumSteppers; ++st) {
+        auto S = [&](int off) { return pid::stepper(st, off); };
+        const bool sync = normToReal(S(pid::stSync), p[S(pid::stSync)]) > 0.5f;
+        const int div = (int) normToReal(S(pid::stDiv), p[S(pid::stDiv)]);
+        const int steps = std::clamp((int) normToReal(S(pid::stSteps), p[S(pid::stSteps)]), 1, pid::kStepperSteps);
+        const double stepHz = sync ? (t.bpm / 60.0) / rateDivBeats(div) : (double) val(p, S(pid::stRate));
+        const bool retrig = normToReal(S(pid::stRetrig), p[S(pid::stRetrig)]) > 0.5f;
+        // one oscillator cycle = the whole sequence; host-locked while the transport plays
+        stepperOsc[st].advance(seconds, stepHz / steps, sync && t.playing && !retrig, ppqEnd, rateDivBeats(div) * steps, 0.f);
+        const double ph = stepperOsc[st].getPhase() * steps;
+        const int k = std::min(steps - 1, (int) ph);
+        const int shape = (int) normToReal(S(pid::stShape0 + k), p[S(pid::stShape0 + k)]);
+        const float target = stepCurve(shape, (float) (ph - k)) * p[S(pid::stAmt0 + k)];
+        const float smooth = val(p, S(pid::stSmooth));
+        if (smooth < 0.001f) stepperVal[st] = target;
+        else {
+            const double tau = std::max(1e-4, (double) smooth * 0.3 / std::max(0.01, stepHz));
+            stepperVal[st] += (target - stepperVal[st]) * (float) (1.0 - std::exp(-seconds / tau));
+        }
     }
 }
 
