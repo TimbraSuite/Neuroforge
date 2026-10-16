@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/huuba91/neuroforge/releases/tag/v0.2.0-beta"><b>⬇ Download v0.2.0-beta</b></a> ·
+  <a href="https://github.com/huuba91/neuroforge/releases/tag/v0.3.0-beta"><b>⬇ Download v0.3.0-beta</b></a> ·
   <a href="docs/MANUAL.md"><b>📖 Manual & tutorials</b></a> ·
   <a href="https://github.com/huuba91/neuroforge/issues">Report a bug</a>
 </p>
@@ -56,7 +56,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 ### Windows
 
-1. Download `Neuroforge-0.2.0-beta-win64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.2.0-beta).
+1. Download `Neuroforge-0.3.0-beta-win64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.3.0-beta).
 2. Install the format your DAW uses:
    - **VST3** (Ableton Live, Cubase, FL Studio, Studio One, Reaper, …): copy the **`Neuroforge.vst3`** folder to `C:\Program Files\Common Files\VST3\`.
    - **CLAP** (Bitwig, Reaper, FL Studio, Studio One, …): copy **`Neuroforge.clap`** to `C:\Program Files\Common Files\CLAP\`.
@@ -74,7 +74,7 @@ curl -fsSL https://raw.githubusercontent.com/huuba91/neuroforge/main/install-mac
 
 Then restart your DAW. Logic Pro and GarageBand use the AU; Ableton, Bitwig, Reaper and others use the VST3 or CLAP. The script is short and [readable](install-mac.sh).
 
-**Manual install:** download `Neuroforge-0.2.0-beta-macos.zip` and copy:
+**Manual install:** download `Neuroforge-0.3.0-beta-macos.zip` and copy:
 
 | File | Folder | DAWs |
 | --- | --- | --- |
