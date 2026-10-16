@@ -98,7 +98,11 @@ class TopBar : public Page, public Tickable {
 public:
     explicit TopBar(NeuroforgeProcessor& p);
     void tick() override;
+    std::function<void()> onLogoClick; // About box
+    void mouseDown(const juce::MouseEvent&) override;
+    juce::MouseCursor getMouseCursor() override;
 private:
+    static juce::Rectangle<int> logoRect() { return { 12, 0, 158, 46 }; }
     void showPresetMenu();
     void step(int dir);
     void showSaveDialog();

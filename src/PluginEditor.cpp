@@ -17,6 +17,8 @@ NeuroforgeEditor::NeuroforgeEditor(NeuroforgeProcessor& p) : AudioProcessorEdito
                                 (juce::Component*) macros.get(), (juce::Component*) mod.get(), (juce::Component*) output.get() })
         content.addAndMakeVisible(c);
 
+    top->onLogoClick = [this] { openAbout(); };
+
     // fixed design layout, scaled as a whole
     top->setBounds(8, 6, 1264, 46);
     source->setBounds(8, 58, 316, 530);
@@ -50,3 +52,19 @@ void NeuroforgeEditor::resized()
 }
 
 void NeuroforgeEditor::timerCallback() { nfui::Tickable::tickAll(); }
+
+void NeuroforgeEditor::openAbout()
+{
+    if (about) return;
+    about = std::make_unique<nfui::AboutBox>();
+    about->onClose = [sp = juce::Component::SafePointer<NeuroforgeEditor>(this)] {
+        juce::MessageManager::callAsync([sp] { if (sp) sp->closeAbout(); });
+    };
+    content.addAndMakeVisible(about.get());
+    about->setBounds(content.getLocalBounds());
+}
+
+void NeuroforgeEditor::closeAbout()
+{
+    about.reset();
+}
