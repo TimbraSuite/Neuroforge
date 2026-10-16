@@ -39,6 +39,12 @@ if (NF_RENDER_SOURCES)
     target_link_libraries(nf_render PRIVATE nf_dsp)
 endif()
 
+# ---- Tutorial demo renderer (engine only; see tools/demos/README.md) ----
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/demos/demo.cpp")
+    add_executable(nf_demo tools/demos/demo.cpp)
+    target_link_libraries(nf_demo PRIVATE nf_dsp)
+endif()
+
 # ---- Plugin ---------------------------------------------------------------------------------
 if (NF_BUILD_PLUGIN)
     add_subdirectory(libs/JUCE)

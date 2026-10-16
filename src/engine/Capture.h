@@ -20,7 +20,7 @@ std::shared_ptr<const WavetableBank> renderCapture(const ParamState& state,
                                                    const std::array<std::shared_ptr<const WavetableBank>, kNumCaptures>& existing,
                                                    const CaptureSettings& settings, std::string name);
 
-// "Next Generation": returns a patch that plays capture `slot` on Osc A with a cleared Forge,
+// RESAMPLE ("next generation"): returns a patch that plays capture `slot` on Osc A with a cleared Forge,
 // FM/Osc B/noise/filter off and modulation routes into cleared areas removed. Sub, envelopes,
 // output and macros' other routes are kept, so the user can immediately re-process the resample.
 ParamState nextGenerationState(const ParamState& current, int slot);

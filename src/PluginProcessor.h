@@ -59,7 +59,7 @@ public:
     juce::String presetName { "Init" };
     void applyStartupPresetIfFresh();
 
-    // Undo history for whole-patch changes (FORGE, MUTATE, NEXT GEN, preset load, Init).
+    // Undo history for whole-patch changes (FORGE, MUTATE, RESAMPLE, preset load, Init).
     // Message thread only.
     bool canUndo() const { return !undoStack.empty(); }
     void undo();

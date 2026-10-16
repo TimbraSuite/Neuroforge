@@ -2,7 +2,7 @@
 
 Neuroforge packages the neurofunk bass workflow into one instrument: source, pre-filter, stacked distortion, comb and formant, OTT, then resample and repeat. Start with [Quick start](#quick-start). Use the later sections as a reference when you want to go deeper.
 
-**Contents:** [Quick start](#quick-start) · [How the sound flows](#how-the-sound-flows) · [The screen](#the-screen) · [Archetypes, FORGE and Mutate](#archetypes-forge-and-mutate) · [The eight macros](#the-eight-macros) · [Source panel](#source-panel) · [The Forge](#the-forge) · [Modulation](#modulation) · [Capture and Next Gen](#capture-and-next-gen) · [Output and mixing](#output-and-mixing) · [Tutorials](#tutorials) · [Tips and troubleshooting](#tips-and-troubleshooting)
+**Contents:** [Quick start](#quick-start) · [How the sound flows](#how-the-sound-flows) · [The screen](#the-screen) · [Archetypes, FORGE and Mutate](#archetypes-forge-and-mutate) · [The eight macros](#the-eight-macros) · [Source panel](#source-panel) · [The Forge](#the-forge) · [Modulation](#modulation) · [Capture and Resample](#capture-and-resample) · [Output and mixing](#output-and-mixing) · [Tutorials](#tutorials) · [Tips and troubleshooting](#tips-and-troubleshooting)
 
 ## Quick start
 
@@ -14,7 +14,7 @@ You can have a mix-ready neuro bass in about two minutes: pick an archetype, pre
 4. Turn the eight **MACROS** (bottom left). Start with GROWL, TALK and GRIT.
 5. Like it but want a sibling? Set the slider under **MUTATE** (subtle, medium or wild) and click **MUTATE**. Didn't like the result? Click **UNDO**.
 6. Click **Save** to keep it. User presets appear under *User* in the preset menu. **INIT** (next to Save) starts from a fresh, empty patch.
-7. Going deeper: click **NEXT GEN** to resample the sound into a wavetable and process it again. See [Capture and Next Gen](#capture-and-next-gen).
+7. Going deeper: click **RESAMPLE** to resample the sound into a wavetable and process it again. See [Capture and Resample](#capture-and-resample).
 
 The factory presets are in the menu that opens when you click the preset name. Use the **<** and **>** arrows to step through them.
 
@@ -30,7 +30,7 @@ The window has six areas, laid out in the order the sound travels: source on the
 
 | Area | Where | What it is for |
 | --- | --- | --- |
-| Top bar | Top | Three groups. Preset: preset menu, Save, INIT (fresh empty patch). Generation: archetype + FORGE, MUTATE, CAPTURE, NEXT GEN and capture settings (**...**). Utility: UNDO, quality (1x/2x/4x), Master gain and the output meter |
+| Top bar | Top | Three groups. Preset: preset menu, Save, INIT (fresh empty patch). Generation: archetype + FORGE, MUTATE, CAPTURE, RESAMPLE and capture settings (**...**). Utility: UNDO, quality (1x/2x/4x), Master gain and the output meter |
 | Source | Left | Tabs OSC A, OSC B, FM OP, SUB+NZ and FILTER: everything that makes the raw sound, per voice |
 | The Forge | Middle | Three passes, each with its own Motion and a chain of up to four effect cards |
 | Output | Right | Low Guard, Sub Warmth, Sub Level, Mid Level, Mid Width, Master Clip, plus an oscilloscope, a spectrum (with dB scale) and the KEYS button that shows or hides the on-screen keyboard |
@@ -75,11 +75,11 @@ FORGE builds a complete patch for the chosen archetype. That covers the source, 
 
 Mutate never touches the master section, Low Guard, the sub, oscillator levels, the amp envelope, macros or modulation routes. It re-matches loudness afterwards.
 
-**UNDO** (in the utility group of the top bar) steps back through your last whole-patch changes: FORGE, MUTATE, NEXT GEN, loading a preset and Init. It remembers up to 32 steps. Knob tweaks are not part of this history; use your DAW's undo for those.
+**UNDO** (in the utility group of the top bar) steps back through your last whole-patch changes: FORGE, MUTATE, RESAMPLE, loading a preset and Init. It remembers up to 32 steps. Knob tweaks are not part of this history; use your DAW's undo for those.
 
 ## The eight macros
 
-Every generated patch wires the macros to the same jobs, so GROWL always means "more growl" whichever archetype you are on. Generated patches leave the macros around 30–50%, so you can turn them both ways.
+Every generated patch wires the macros to the same jobs, so GROWL always means "more growl" whichever archetype you are on. Generated patches leave the macros around 0.30–0.50, so you can turn them both ways.
 
 | Macro | What it does | Typical targets |
 | --- | --- | --- |
@@ -103,18 +103,18 @@ The Source panel makes the raw sound for each voice. It has two wavetable oscill
 | Control | Range | Use it for |
 | --- | --- | --- |
 | Table | 12 built-in tables + Capture 1–4 | The waveform family; the display shows the current frame |
-| Position | 0–100% | Scans through the table's frames; modulate it for movement |
+| Position | 0.00–1.00 | Scans through the table's frames; modulate it for movement |
 | Octave / Semi / Fine | ±3 oct / ±12 st / ±100 ct | Tuning |
-| Level / Pan | 0–100% / L–R | Mix and placement |
+| Level / Pan | 0.00–1.00 / −1.00 to +1.00 (L–R) | Mix and placement |
 | Unison | 1–16 voices | Thickness |
-| Detune | 0–100 cents total spread | Beating; the curve is gentle near the centre voice |
-| Stereo / Blend | 0–100% | Unison width / centre voice versus side voices |
-| Phase / Rand | 0–100% | Start phase and how random it is per note |
+| Detune | 0.00–1.00 (total spread) | Beating; the curve is gentle near the centre voice |
+| Stereo / Blend | 0.00–1.00 | Unison width / centre voice versus side voices |
+| Phase / Rand | 0.00–1.00 | Start phase and how random it is per note |
 | Warp + Warp amount | 11 modes | Reshapes the waveform (see below) |
-| FM Op | 0–100% | How much the FM operator modulates this oscillator |
+| FM Op | 0.00–1.00 | How much the FM operator modulates this oscillator |
 | Retrig | On / Off | Restart the phase on every note |
 
-**Punch or beating?** Retrig on with Rand at 0 gives identical, punchy hits. Retrig off with Rand at 100% lets the oscillators run free, which is what makes a classic Reese beat and move by itself.
+**Punch or beating?** Retrig on with Rand at 0.00 gives identical, punchy hits. Retrig off with Rand at 1.00 lets the oscillators run free, which is what makes a classic Reese beat and move by itself.
 
 **Wavetables:** Saw>Square, Basic Shapes (sine, triangle, saw, square), PWM, Formant Vox (vowels across the table), Harmonic Sweep, Metal Bars, Reese Pulse, Growl FM, Sync Saw, Digital Grit, Hollow, Phase Dist (Casio CZ-style, where the original Reese came from). Capture 1–4 hold your own resamples.
 
@@ -163,8 +163,8 @@ The Forge is where a neuro bass gets its character. It is three passes in series
 Each pass has one Motion modulator that moves the **first knob (P1)** of every slot in that pass.
 
 - **LFO** mode: with Sync on, pick a division (8 bars down to 1/64, with dotted and triplet values). With Sync off, pick a rate in Hz. Shapes: Sine, Triangle, Saw Up, Saw Down, Square, S&H, Smooth Rand.
-- **Steps** mode: draw up to 16 bars with the mouse, then set the number of Steps and the Glide between them. The cyan column shows the current step.
-- **Depth** sets how far Motion moves. At Depth 100% and slot Motion 100%, P1 swings ±50% of its range around where you set the knob.
+- **Steps** mode: draw up to 16 bars with the mouse, then set the number of Steps and the Glide between them. With Sync on, the division sets the length of the whole pattern (8 steps in 1 bar = one step per 1/8 note). The cyan column shows the current step.
+- **Depth** sets how far Motion moves. At Depth 1.00 and slot Motion +100%, P1 swings ±50% of its range around where you set the knob.
 - With Sync on and your DAW playing, Motion locks to the song position. When the transport is stopped it restarts on every note.
 - Give each pass a different rate (for example 1/8, 1/4T and 1/16). The rhythms rub against each other and the bass never sounds static.
 
@@ -179,7 +179,7 @@ Each pass shows its effects as a chain of cards under **EFFECTS**, in processing
 | Crush | Rate (200 Hz–48 kHz) | Bits (1–16) | Jitter | Tone | Digital grain and aliasing |
 | Filter | Cutoff | Reso | Mode (LP, BP, HP, Notch) | Drive | Sweeps; a moving notch alone gives lots of movement |
 | Formant | Vowel (A, E, I, O, U) | Shift (±12 st) | Q | Spread (L/R vowel offset) | Talking basses |
-| Comb | Freq | Feedback (±) | Damp | KeyTrack | Metallic resonance; with KeyTrack on, Freq 100 = tuned to the note, 200 = an octave up, 300 = a fifth above that |
+| Comb | Freq | Feedback (±) | Damp | KeyTrack | Metallic resonance; with KeyTrack on, Freq 100 Hz = tuned to the note, 200 Hz = an octave up, 300 Hz = a fifth above that |
 | Phaser | Freq | Feedback | Stages (2–12) | Spread | Classic reese smear |
 | Flanger | Delay (0.05–15 ms) | Feedback (±) | Stereo | Damp | Jet sweeps and hollow tones |
 | FreqShift | Shift (±1000 Hz) | Feedback | Stereo | – | Inharmonic sheen; small shifts give slow beating |
@@ -187,7 +187,7 @@ Each pass shows its effects as a chain of cards under **EFFECTS**, in processing
 | Disperse | Freq | Amount (up to 64 allpass stages) | Pinch | Spread | Laser "zap" smear (Disperser style) |
 | OTT | Depth | Time | Up (upward) | Down (downward) | Three-band upward and downward compression: brings up grit and detail |
 | EQ | Low Cut | Tilt (±12 dB) | Mid Freq | Mid Gain | Clean-up and tone |
-| Width | Width (0–200%) | Haas (0–20 ms) | Mono below | – | Stereo shaping |
+| Width | Width (0.00–2.00) | Haas (0–20 ms) | Mono below | – | Stereo shaping |
 
 **Order matters.**
 - A filter, notch or formant *before* distortion changes which harmonics get distorted, so the sound talks.
@@ -228,11 +228,11 @@ The **STEPPER** tab holds two curve sequencers, STEP 1 and STEP 2, in the style 
 - **Steps** sets the pattern length, the **step length** (Sync on, e.g. 1/16) or **Rate** (Sync off, Hz) sets the speed, **Smooth** rounds off jumps between steps, and **Retrig** restarts the pattern on each note.
 - Drag the **STP 1 / STP 2** chip onto any knob to use it. A stepper on a filter cutoff, formant vowel or FM amount gives detailed, rhythmic talking that an LFO can't.
 
-**Looping envelopes** are the secret to self-moving FM basses. A looped Env 3 with Attack 40 ms and Decay 130 ms repeats about every 1/8 note at 174 BPM. Route it to an FM Op amount, a wavetable Position or a filter cutoff.
+**Looping envelopes** are the secret to self-moving FM basses. A looped Env 3 with Attack 40.0 ms and Decay 130 ms repeats about every 1/8 note at 174 BPM. Route it to an FM Op amount, a wavetable Position or a filter cutoff.
 
 The **MATRIX** tab shows all 24 routes: a colour-coded source, a destination named by section and slot (for example *Filter Cutoff (Slot 1)*), and a bipolar amount. Modulation adds to the knob's own value, so set the knob where the movement should start.
 
-## Capture and Next Gen
+## Capture and Resample
 
 Capture is resampling inside the plugin. It renders your current patch holding one note, then cuts the result into a wavetable you can play and process again.
 
@@ -245,7 +245,7 @@ Capture is resampling inside the plugin. It renders your current patch holding o
 | Button | What it does |
 | --- | --- |
 | CAPTURE | Renders into the next capture slot (Capture 1–4, cycling) and leaves your patch as it is. Pick the capture in any oscillator's Table menu |
-| NEXT GEN | Captures, then loads it on OSC A with a fresh, empty Forge. OSC B, FM OP, noise, the voice filter and pitch envelope are reset; the sub, envelopes, output settings and macros stay |
+| RESAMPLE | Captures the current patch, loads it on OSC A and clears the Forge for the next round. OSC B, FM OP, noise, the voice filter and pitch envelope are reset; the sub, envelopes, output settings and macros stay |
 | ... | Capture settings: **Note** (C1–C5, default C2), **Beats** (1–16, default 4) and **Frames** (16–256, default 128) |
 
 The status next to the buttons shows *Rendering…* and then which slot was filled. Captures are saved in the plugin state, so they are stored with your DAW project.
@@ -254,8 +254,8 @@ The status next to the buttons shows *Rendering…* and then which slot was fill
 
 - Capture at the pitch you will play (or an octave above) for the most natural result. Playing far from the capture note shifts its formants, which can be a great effect in itself.
 - Fewer frames with more beats gives coarser, steppier scanning; 128–256 frames gives smooth morphs.
-- Captures of captures work: a NEXT GEN patch can be captured again, three or four generations deep. Each generation adds a layer of movement that is now baked into the waveform.
-- After NEXT GEN, the first move is usually to put an LFO, a looping envelope or a Motion on OSC A **Position**. Then rebuild a pass or two around it.
+- Captures of captures work: a RESAMPLE patch can be captured again, three or four generations deep. Each generation adds a layer of movement that is now baked into the waveform.
+- After RESAMPLE, the first move is usually to put an LFO, a looping envelope or a Motion on OSC A **Position**. Then rebuild a pass or two around it.
 
 ## Output and mixing
 
@@ -267,11 +267,11 @@ The output meter in the top bar shows the level in dB with a peak hold of about 
 | --- | --- | --- |
 | Low Guard | Splits the oscillators at Guard Freq. Everything below goes to the mono sub bus; everything above goes through the Forge, and is high-passed again afterwards so distortion cannot muddy the low end | On |
 | Guard Freq | Split frequency (40–300 Hz) | 105–140 Hz |
-| Sub Warmth | Gentle saturation on the sub bus, low-passed so it stays round; helps the sub translate on small speakers | 10–25% |
-| Sub Level | Level of the sub bus (−36 to +6 dB) | −6 dB |
-| Mid Level | Level of the processed mids (−36 to +6 dB) | 0 to +2 dB |
-| Mid Width | Stereo width of the mids only (0–200%) | 100–130% |
-| Master Clip | Soft ceiling at −1 dBFS; the amount sets how hard it clips | 100% on generated patches |
+| Sub Warmth | Gentle saturation on the sub bus, low-passed so it stays round; helps the sub translate on small speakers | 0.10–0.25 |
+| Sub Level | Level of the sub bus (−36 to +6 dB) | −6.0 dB |
+| Mid Level | Level of the processed mids (−36 to +6 dB) | 0.0 to +2.0 dB |
+| Mid Width | Stereo width of the mids only (0.00–2.00) | 1.00–1.30 |
+| Master Clip | Soft ceiling at −1 dBFS; the amount sets how hard it clips | 1.00 on generated patches |
 | Master | Output gain before the clipper | Set by FORGE |
 | Quality (top bar) | Internal oversampling: 1x, 2x or 4x | 2x |
 
@@ -289,35 +289,41 @@ Three recipes, each about ten minutes. Play a held F1 while you build, then a ba
 ### 1. Self-moving FM growl (Noisia-style)
 
 1. Click **INIT** (top bar, next to Save). On SUB+NZ set the sub **Octave** to 0.
-2. OSC A: **Table** Basic Shapes, **Position** 0% (a sine).
-3. FM OP: **On**, **Ratio** 1, **Fine** +5 ct, **Feedback** 20%. Back on OSC A, set **FM Op** to 25%.
-4. ENVELOPES → Env 3: Attack 40 ms, Decay 130 ms, Sustain 0, **Loop** on.
+2. OSC A: **Table** Basic Shapes, **Position** 0.00 (a sine).
+3. FM OP: **On**, **Ratio** 1, **Fine** 5 ct, **Feedback** 0.20. Back on OSC A, set **FM Op** to 0.25.
+4. ENVELOPES → Env 3: Attack 40.0 ms, Decay 130 ms, Sustain 0.00, **Loop** on.
 5. Drag the **ENV 3** chip onto OSC A's **FM Op** knob. Drag the **E3** badge under the knob upward until the pink ring reaches about 70% (or Alt-drag the knob). The growl now pulses on 1/8 notes by itself.
-6. Pass 1: add **Fold** (Drive 10 dB, Folds 40%), then **Filter** (Cutoff 4 kHz, Reso 35%).
-   - Set Motion to Sync, 1/8, Saw Down, Depth 50%.
+6. Pass 1: add **Fold** (Drive 10.0 dB, Folds 0.40), then **Filter** (Cutoff 4.00 kHz, Reso 0.35).
+   - Set Motion to Sync, 1/8, Saw Down, Depth 0.50.
    - Set the Fold slot's Motion to 0% so only the filter moves.
-7. Pass 2: **Comb** (KeyTrack on, Freq 200, Feedback 60%, Mix 35%) then **Drive** (8 dB, Shape 80%).
-8. Pass 3: **OTT** (Depth 50%) then **EQ** (Mid freq 350 Hz, Mid gain −3 dB).
-9. Output: Sub Level −6 dB. Try FM OP Ratio 2 or 0.5 for different growls.
+7. Pass 2: **Comb** (KeyTrack on, Freq 200 Hz, Feedback 0.60, Mix 35%) then **Drive** (8.0 dB, Shape 0.80).
+8. Pass 3: **OTT** (Depth 0.50) then **EQ** (Mid freq 350 Hz, Mid gain −3.0 dB).
+9. Output: Sub Level −6.0 dB. Try FM OP Ratio 2 or 0.5 for different growls.
+
+**Listen:** [tutorial-1.mp3](audio/tutorial-1.mp3)
 
 ### 2. Talking bass with a vowel sequence
 
 1. Pick **Talker** and press FORGE, or start from Init with OSC A on Saw>Square, Unison 1.
-2. Pass 1, slot 1: **Drive** (12 dB) with its Motion at 0%. Slot 2: **Formant** (Vowel in the middle, Q 65%, Mix 100%, Motion 100%).
-3. Motion 1: mode **Steps**, Sync, 1/8, Depth 100%, Steps 8, Glide 40%.
-4. Draw the bars: bottom = A, 25% = E, middle = I, 75% = O, top = U. Try A, O, I, E, A, U, I, O.
+2. Pass 1, slot 1: **Drive** (12.0 dB) with its Motion at 0%. Slot 2: **Formant** (Vowel 2.00 (I), Q 0.65, Mix 100%, Motion 100%).
+3. Motion 1: mode **Steps**, Sync, 1 bar, Depth 1.00, Steps 8, Glide 0.40. In Steps mode the division is the length of the whole pattern, so 8 steps in 1 bar gives one vowel per 1/8 note. Try 1/8 for a very fast vowel chatter.
+4. Draw the bars: bottom = A, a quarter of the way up = E, halfway = I, three quarters = O, top = U. Try A, O, I, E, A, U, I, O.
 5. Drive *before* the formant gives hard, clear talking; swap the slots for a smoother, rounder voice.
 6. Turn **GROWL** for a sharper formant and **TALK** to push the vowel movement.
+
+**Listen:** [tutorial-2.mp3](audio/tutorial-2.mp3)
 
 ### 3. Two generations of resampling
 
 1. Load **Wormhole Reese**. In **...** set Note F1, Beats 8, Frames 256.
-2. Click **NEXT GEN**. OSC A now plays Capture 1 and the Forge is empty.
+2. Click **RESAMPLE**. OSC A now plays Capture 1 and the Forge is empty.
 3. LFOS → LFO 1: Sync, 1/4, Triangle. Drag the **LFO 1** chip onto OSC A **Position**. The old patch's filter sweeps now play back on 1/4 notes.
-4. Pass 1: **Comb** (KeyTrack, Freq 300, Feedback 75%) then **Drive** (10 dB). Motion 1/8T, Depth 30%.
-5. Pass 3: **OTT** (Depth 45%) then **EQ**.
-6. Click **NEXT GEN** again for a third generation. Give it a new movement, for example a Formant step sequence in Pass 2.
+4. Pass 1: **Comb** (KeyTrack, Freq 300 Hz, Feedback 0.75) then **Drive** (10.0 dB). Motion 1/8T, Depth 0.30.
+5. Pass 3: **OTT** (Depth 0.45) then **EQ**.
+6. Click **RESAMPLE** again for a third generation. Drag the **LFO 1** chip onto OSC A **Position** again so the new table moves, then give it a new movement, for example a Formant step sequence in Pass 2.
 7. Click **MUTATE** (subtle) a few times and **Save** the versions you like. That is your bass library for the track.
+
+**Listen:** [tutorial-3.mp3](audio/tutorial-3.mp3)
 
 ## Tips and troubleshooting
 
@@ -329,7 +335,7 @@ Three recipes, each about ten minutes. Play a held F1 while you build, then a ba
 | Motion moves the wrong knob | Motion always moves P1 of every slot in its pass. Set the slot's **Motion** knob to 0% on slots that should stay still |
 | Motion is out of time | With Sync on it follows your project tempo; it locks to the bar only while your DAW is playing |
 | FORGE or MUTATE changed my levels | FORGE re-matches loudness; turn **Master** to taste afterwards |
-| CAPTURE seems to do nothing | Check the status text, then pick Capture 1–4 in an oscillator's Table menu. NEXT GEN does that for you |
+| CAPTURE seems to do nothing | Check the status text, then pick Capture 1–4 in an oscillator's Table menu. RESAMPLE does that for you |
 | High CPU | Lower Quality to 1x while writing, use fewer unison voices, and keep Disperse Amount moderate (it is the heaviest effect) |
 
 More ideas:

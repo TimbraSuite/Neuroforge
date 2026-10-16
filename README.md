@@ -36,7 +36,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
   - Each pass has its own **Motion**, a tempo-synced LFO or a 16-step sequencer. Each pass re-applies movement the way a resample pass would.
 - **In-plugin resampling.**
   - **CAPTURE** renders your patch into a wavetable, sliced in sync with the note's pitch.
-  - **NEXT GEN** loads that wavetable into a clean Forge so you can process it again, for several generations.
+  - **RESAMPLE** captures your patch, loads that wavetable on OSC A and clears the Forge so you can process it again, for several generations.
 - **Low Guard** keeps the sub clean and mono. An LR4 split sends the lows to a mono sub bus, and only the mids get destroyed.
 - **Formats:** VST3, CLAP and a standalone app on Windows and macOS, plus AU for Logic Pro and GarageBand. macOS builds are universal (Apple Silicon + Intel).
 - **Source:** two wavetable oscillators and an FM operator.
@@ -100,6 +100,8 @@ The **[Manual](docs/MANUAL.md)** covers:
 - a signal-flow diagram
 - every panel and effect
 - three step-by-step tutorials: a self-moving FM growl, a talking vowel bass, and two generations of resampling
+
+**Demo sounds:** bassline-only renders of the three tutorial results are in [`docs/audio/`](docs/audio/) (`tutorial-1`, `tutorial-2`, `tutorial-3`).
 
 ## Beta status
 
