@@ -85,7 +85,7 @@ void AboutBox::mouseDown(const juce::MouseEvent& e)
 {
     const auto p = e.getPosition();
     if (genRect().contains(p)) rollSerial();
-    else if (logoRect().contains(p)) juce::URL("https://github.com/huuba91/neuroforge").launchInDefaultBrowser();
+    else if (logoRect().contains(p)) juce::URL("https://github.com/TimbraSuite/neuroforge").launchInDefaultBrowser();
     else if (exitRect().contains(p) || ! box().contains(p)) close();
 }
 

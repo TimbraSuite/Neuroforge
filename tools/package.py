@@ -9,7 +9,7 @@ import os
 import stat
 import zipfile
 
-REPO = "https://github.com/huuba91/neuroforge"
+REPO = "https://github.com/TimbraSuite/neuroforge"
 
 WINDOWS_INSTALL = """NEUROFORGE {version}-beta (Windows x64)
 ====================================
@@ -40,7 +40,7 @@ MACOS_INSTALL = """NEUROFORGE {version}-beta (macOS 10.15+, Apple Silicon + Inte
 
 EASIEST: one line in Terminal installs everything and avoids the macOS warnings:
 
-  curl -fsSL https://raw.githubusercontent.com/huuba91/neuroforge/main/install-mac.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/TimbraSuite/neuroforge/main/install-mac.sh | bash
 
 MANUAL INSTALL (from this zip)
   Copy each format to its folder (in Finder: Go > Go to Folder...):

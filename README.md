@@ -8,9 +8,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/huuba91/neuroforge/releases/tag/v0.3.0-beta"><b>⬇ Download v0.3.0-beta</b></a> ·
+  <a href="https://github.com/TimbraSuite/neuroforge/releases/tag/v0.3.0-beta"><b>⬇ Download v0.3.0-beta</b></a> ·
   <a href="docs/MANUAL.md"><b>📖 Manual & tutorials</b></a> ·
-  <a href="https://github.com/huuba91/neuroforge/issues">Report a bug</a>
+  <a href="https://github.com/TimbraSuite/neuroforge/issues">Report a bug</a>
 </p>
 
 ![Neuroforge screenshot](docs/images/screenshot.png)
@@ -56,7 +56,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 ### Windows
 
-1. Download `Neuroforge-0.3.0-beta-win64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.3.0-beta).
+1. Download `Neuroforge-0.3.0-beta-win64.zip` from the [release page](https://github.com/TimbraSuite/neuroforge/releases/tag/v0.3.0-beta).
 2. Install the format your DAW uses:
    - **VST3** (Ableton Live, Cubase, FL Studio, Studio One, Reaper, …): copy the **`Neuroforge.vst3`** folder to `C:\Program Files\Common Files\VST3\`.
    - **CLAP** (Bitwig, Reaper, FL Studio, Studio One, …): copy **`Neuroforge.clap`** to `C:\Program Files\Common Files\CLAP\`.
@@ -66,7 +66,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 ### Linux (x86_64)
 
-1. Download `Neuroforge-0.3.0-beta-linux-x86_64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.3.0-beta) once a Linux build is published there (otherwise grab the zip from the latest GitHub Actions run).
+1. Download `Neuroforge-0.3.0-beta-linux-x86_64.zip` from the [release page](https://github.com/TimbraSuite/neuroforge/releases/tag/v0.3.0-beta) once a Linux build is published there (otherwise grab the zip from the latest GitHub Actions run).
 2. Unzip, then copy the formats your DAW uses:
 
 ```bash
@@ -84,7 +84,7 @@ It needs ALSA, FreeType, Fontconfig and X11 at runtime, which most desktop distr
 **Easiest:** paste this line into **Terminal**. It installs VST3, AU, CLAP and the standalone app for your user:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/huuba91/neuroforge/main/install-mac.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TimbraSuite/neuroforge/main/install-mac.sh | bash
 ```
 
 Then restart your DAW. Logic Pro and GarageBand use the AU; Ableton, Bitwig, Reaper and others use the VST3 or CLAP. The script is short and [readable](install-mac.sh).
@@ -126,14 +126,14 @@ This is a public beta. Here is what we know:
 - Heavily clipped patches can overshoot 0 dBTP by a fraction of a dB between samples. A master limiter handles that.
 - Preset and plugin-state formats may still change before 1.0.
 
-Feedback, bug reports and sound-design ideas are very welcome in [Issues](https://github.com/huuba91/neuroforge/issues).
+Feedback, bug reports and sound-design ideas are very welcome in [Issues](https://github.com/TimbraSuite/neuroforge/issues).
 
 ## Build from source
 
 Requirements: CMake ≥ 3.22 plus Visual Studio 2022/2026 (Windows), Xcode command line tools and Ninja (macOS), or GCC/Clang, Ninja and the dev packages `libasound2-dev libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev` (Linux).
 
 ```bash
-git clone https://github.com/huuba91/neuroforge.git
+git clone https://github.com/TimbraSuite/neuroforge.git
 cd neuroforge
 git clone --depth 1 --branch 8.0.4 https://github.com/juce-framework/JUCE.git libs/JUCE
 git clone --recursive https://github.com/free-audio/clap-juce-extensions.git libs/clap-juce-extensions

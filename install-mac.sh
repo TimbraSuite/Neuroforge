@@ -1,6 +1,6 @@
 #!/bin/bash
 # Neuroforge installer for macOS.
-#   curl -fsSL https://raw.githubusercontent.com/huuba91/neuroforge/main/install-mac.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/TimbraSuite/neuroforge/main/install-mac.sh | bash
 #
 # Downloads the newest macOS build from GitHub Releases and installs, for the current user only:
 #   VST3  -> ~/Library/Audio/Plug-Ins/VST3
@@ -10,7 +10,7 @@
 # Files fetched with curl are not quarantined, so macOS does not block these un-notarized builds.
 set -euo pipefail
 
-REPO="huuba91/neuroforge"
+REPO="TimbraSuite/neuroforge"
 PLUGINS="$HOME/Library/Audio/Plug-Ins"
 APPS="$HOME/Applications"
 
