@@ -1041,7 +1041,7 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     undo = make<juce::TextButton>("UNDO");
     mutAmt = make<Bar>();
     capture = make<juce::TextButton>("CAPTURE");
-    nextGen = make<juce::TextButton>("NEXT GEN");
+    nextGen = make<juce::TextButton>("RESAMPLE");
     capSet = make<juce::TextButton>("...");
     status = make<juce::Label>();
     auto* quality = make<ParamCombo>(p, pid::quality);
@@ -1065,7 +1065,7 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     mutate->onClick = [this] { proc.mutate(mutateAmount); };
     undo->setColour(juce::TextButton::buttonColourId, cPanel2);
     undo->setColour(juce::TextButton::textColourOffId, cText);
-    undo->setTooltip("Go back to the patch before the last FORGE, MUTATE, NEXT GEN or preset change");
+    undo->setTooltip("Go back to the patch before the last FORGE, MUTATE, RESAMPLE or preset change");
     undo->onClick = [this] { proc.undo(); };
     mutAmt->label = "Amount";
     mutAmt->defaultValue = 0.4f;
@@ -1077,7 +1077,7 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     capture->setTooltip("Render the current patch offline into a wavetable slot (resample)");
     capture->onClick = [this] { proc.startCapture(false); };
     nextGen->setColour(juce::TextButton::textColourOffId, cAccent);
-    nextGen->setTooltip("Capture, then load a fresh patch that plays the capture on Osc A (re-process it)");
+    nextGen->setTooltip("Captures this sound onto OSC A and clears the Forge for the next round");
     nextGen->onClick = [this] { proc.startCapture(true); };
     capSet->setTooltip("Capture settings");
     capSet->onClick = [this] { showCaptureSettings(); };
