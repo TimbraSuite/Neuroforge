@@ -28,13 +28,14 @@ private:
     void close();
     juce::Rectangle<int> box() const { return juce::Rectangle<int>(kW, kH).withCentre(getLocalBounds().getCentre()); }
     juce::Rectangle<int> genRect() const { return juce::Rectangle<int>(box().getX() + 30, box().getY() + 184, 170, 22); }
+    juce::Rectangle<int> logoRect() const { return juce::Rectangle<int>(box().getX() + 90, box().getY() + 6, 240, 52); }
     juce::Rectangle<int> exitRect() const { return juce::Rectangle<int>(box().getX() + 220, box().getY() + 184, 170, 22); }
 
     struct Star { float x, y, v; };
     std::vector<Star> stars;
     juce::String serial, nameText { "Neurofunk Producer" };
     double t0 = 0.0, serialT0 = 0.0;
-    int hover = 0; // 1 = generate, 2 = exit
+    int hover = 0; // 1 = generate, 2 = exit, 3 = logo (GitHub link)
     juce::Random rng;
 };
 

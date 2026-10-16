@@ -70,7 +70,7 @@ void AboutBox::timerCallback()
 
 void AboutBox::mouseMove(const juce::MouseEvent& e)
 {
-    const int h = genRect().contains(e.getPosition()) ? 1 : (exitRect().contains(e.getPosition()) ? 2 : 0);
+    const int h = genRect().contains(e.getPosition()) ? 1 : (exitRect().contains(e.getPosition()) ? 2 : (logoRect().contains(e.getPosition()) ? 3 : 0));
     if (h != hover) { hover = h; repaint(); }
 }
 
@@ -85,6 +85,7 @@ void AboutBox::mouseDown(const juce::MouseEvent& e)
 {
     const auto p = e.getPosition();
     if (genRect().contains(p)) rollSerial();
+    else if (logoRect().contains(p)) juce::URL("https://github.com/huuba91/neuroforge").launchInDefaultBrowser();
     else if (exitRect().contains(p) || ! box().contains(p)) close();
 }
 
