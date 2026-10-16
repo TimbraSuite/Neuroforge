@@ -337,4 +337,4 @@ More ideas:
 - Automate the macros in your DAW for drops and fills; every macro is a normal automatable parameter.
 - Use **RND** (random per note) on Formant Vowel or Comb Freq for subtle per-hit variation, a hallmark of modern neuro.
 - Stack two Neuroforge instances with the same patch but different Motion rates, and switch the sub off on one of them. That gives a huge, evolving bass.
-- Your user presets live in `%APPDATA%\Neuroforge\Presets` (Windows) or `~/Library/Application Support/Neuroforge/Presets` (macOS) as `.nfpreset` text files, easy to back up or share.
+- Your user presets live in `%APPDATA%\Neuroforge\Presets` (Windows) or `~/Library/Application Support/Neuroforge/Presets` (macOS) or `~/.config/Neuroforge/Presets` (Linux) as `.nfpreset` text files, easy to back up or share.

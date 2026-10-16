@@ -22,6 +22,7 @@ set(NF_DSP_GLOBS "src/dsp/*.cpp;src/engine/*.cpp" CACHE STRING "Globs (recursive
 file(GLOB_RECURSE NF_DSP_SOURCES CONFIGURE_DEPENDS ${NF_DSP_GLOBS})
 add_library(nf_dsp STATIC src/dsp/DspStub.cpp ${NF_DSP_SOURCES})
 target_include_directories(nf_dsp PUBLIC src)
+set_target_properties(nf_dsp PROPERTIES POSITION_INDEPENDENT_CODE ON) # linked into shared plugin modules on Linux
 if (MSVC)
     target_compile_options(nf_dsp PRIVATE /W4 /fp:fast /wd4100 /wd4244 /wd4305)
     target_compile_definitions(nf_dsp PUBLIC _USE_MATH_DEFINES NOMINMAX)
@@ -54,7 +55,7 @@ if (NF_BUILD_PLUGIN)
         add_subdirectory(libs/clap-juce-extensions EXCLUDE_FROM_ALL)
         set(NF_HAS_CLAP ON)
     endif()
-    set(NF_FORMATS VST3 Standalone)
+    set(NF_FORMATS VST3 Standalone) # Windows, macOS and Linux (CLAP is added by clap-juce-extensions)
     if (APPLE)
         list(APPEND NF_FORMATS AU) # Logic Pro / GarageBand
     endif()

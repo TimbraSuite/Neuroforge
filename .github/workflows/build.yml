@@ -1,10 +1,10 @@
-# Builds Neuroforge for Windows and macOS on every push, runs the tests and plugin validators,
-# and on a version tag (v*) publishes a GitHub pre-release with both zips attached.
+# Builds Neuroforge for Windows, macOS and Linux on every push, runs the tests and plugin validators,
+# and on a version tag (v*) publishes a GitHub pre-release with all zips attached.
 name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, linux]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -27,6 +27,8 @@ jobs:
             platform: windows
           - os: macos-14
             platform: macos
+          - os: ubuntu-22.04
+            platform: linux
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -41,6 +43,12 @@ jobs:
       - name: Install Ninja (macOS)
         if: matrix.platform == 'macos'
         run: command -v ninja || brew install ninja
+
+      - name: Install build dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config libasound2-dev libx11-dev libxext-dev libxrandr-dev             libxinerama-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev
 
       - name: Version
         id: ver
@@ -60,8 +68,8 @@ jobs:
         if: matrix.platform == 'windows'
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 
-      - name: Configure (macOS, universal)
-        if: matrix.platform == 'macos'
+      - name: Configure (macOS universal, Linux)
+        if: matrix.platform == 'macos' || matrix.platform == 'linux'
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build

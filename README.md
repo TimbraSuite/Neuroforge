@@ -4,7 +4,7 @@
 
 <p align="center">
   <b>A neurofunk bass instrument.</b> Great neuro bass in seconds, and deep enough to spend hours in.<br>
-  VST3 · AU · CLAP · Standalone · Windows & macOS · <b>beta</b>
+  VST3 · AU · CLAP · Standalone · Windows, macOS & Linux · <b>beta</b>
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
   - **CAPTURE** renders your patch into a wavetable, sliced in sync with the note's pitch.
   - **RESAMPLE** captures your patch, loads that wavetable on OSC A and clears the Forge so you can process it again, for several generations.
 - **Low Guard** keeps the sub clean and mono. An LR4 split sends the lows to a mono sub bus, and only the mids get destroyed.
-- **Formats:** VST3, CLAP and a standalone app on Windows and macOS, plus AU for Logic Pro and GarageBand. macOS builds are universal (Apple Silicon + Intel).
+- **Formats:** VST3, CLAP and a standalone app on Windows, macOS and Linux (x86_64), plus AU for Logic Pro and GarageBand. macOS builds are universal (Apple Silicon + Intel).
 - **Source:** two wavetable oscillators and an FM operator.
   - 12 procedural neuro wavetables.
   - Unison up to 16 voices.
@@ -63,6 +63,21 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 3. Rescan plug-ins in your DAW. In Ableton: *Settings → Plug-ins → Use VST3 Plug-in System Folders → Rescan*.
 
 `Neuroforge.exe` is a standalone version. The binaries are not code-signed yet, so Windows SmartScreen may warn on first launch.
+
+### Linux (x86_64)
+
+1. Download `Neuroforge-0.3.0-beta-linux-x86_64.zip` from the [release page](https://github.com/huuba91/neuroforge/releases/tag/v0.3.0-beta) once a Linux build is published there (otherwise grab the zip from the latest GitHub Actions run).
+2. Unzip, then copy the formats your DAW uses:
+
+```bash
+mkdir -p ~/.vst3 ~/.clap
+cp -r Neuroforge.vst3 ~/.vst3/     # VST3 (Bitwig, Reaper, Ardour, …)
+cp Neuroforge.clap ~/.clap/        # CLAP (Bitwig, Reaper, …)
+```
+
+3. Rescan plug-ins in your DAW. `Neuroforge` is a standalone version you can run from anywhere.
+
+It needs ALSA, FreeType, Fontconfig and X11 at runtime, which most desktop distributions already have. User presets are stored in `~/.config/Neuroforge/Presets`.
 
 ### macOS (10.15 or newer, Apple Silicon and Intel)
 
@@ -105,6 +120,7 @@ The **[Manual](docs/MANUAL.md)** covers:
 
 This is a public beta. Here is what we know:
 - Tested by hand on Windows in Ableton Live (VST3) and Bitwig (CLAP).
+- **Linux is CI-built and untested by hand:** the VST3, CLAP and standalone build on Ubuntu 22.04 in CI, pass the unit tests and the clap-validator, but nobody has run them in Bitwig, Reaper or Ardour on Linux yet. **Linux testers wanted!**
 - **macOS is new and untested by hand:** every build passes the unit tests, Apple's `auval` Audio Unit validation and the official [clap-validator](https://github.com/free-audio/clap-validator) on a Mac in CI, but nobody has played it in Logic or Ableton on a Mac yet. **Mac testers wanted!** Please report how it runs.
 - Presets are tuned for basslines around F1–F2 (about 44–87 Hz).
 - Heavily clipped patches can overshoot 0 dBTP by a fraction of a dB between samples. A master limiter handles that.
@@ -114,7 +130,7 @@ Feedback, bug reports and sound-design ideas are very welcome in [Issues](https:
 
 ## Build from source
 
-Requirements: CMake ≥ 3.22 plus Visual Studio 2022/2026 (Windows) or Xcode command line tools and Ninja (macOS).
+Requirements: CMake ≥ 3.22 plus Visual Studio 2022/2026 (Windows), Xcode command line tools and Ninja (macOS), or GCC/Clang, Ninja and the dev packages `libasound2-dev libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev` (Linux).
 
 ```bash
 git clone https://github.com/huuba91/neuroforge.git
@@ -127,9 +143,12 @@ cmake --build build --config Release --target Neuroforge_VST3 Neuroforge_CLAP Ne
 # macOS (universal binary)
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target Neuroforge_VST3 Neuroforge_AU Neuroforge_CLAP Neuroforge_Standalone
+# Linux
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target Neuroforge_VST3 Neuroforge_CLAP Neuroforge_Standalone
 ```
 
-Every push is also built and tested for both platforms by [GitHub Actions](.github/workflows/build.yml); pushing a `v*` tag publishes a release with both zips.
+Every push is also built and tested for Windows, macOS and Linux by [GitHub Actions](.github/workflows/build.yml); pushing a `v*` tag publishes a release with all zips.
 
 `libs/clap-juce-extensions` is optional: without it, the CLAP target is simply skipped.
 

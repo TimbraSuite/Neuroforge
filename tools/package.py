@@ -1,6 +1,6 @@
 """Package a Neuroforge build into a release zip.
 
-  python tools/package.py --platform windows|macos --version 0.3.0 --artefacts build/Neuroforge_artefacts/Release --out dist
+  python tools/package.py --platform windows|macos|linux --version 0.3.0 --artefacts build/Neuroforge_artefacts/Release --out dist
 
 Unix file modes are preserved in the zip, so macOS bundles keep their executable bits.
 """
@@ -62,6 +62,41 @@ Licensed under the GNU AGPLv3 (see LICENSE.txt). Source: {repo}
 Third-party licenses are in the "third-party-licenses" folder.
 """
 
+LINUX_INSTALL = """NEUROFORGE {version}-beta (Linux x86_64)
+=======================================
+
+VST3  (Bitwig, Reaper, Ardour, ...)
+  Copy the folder "Neuroforge.vst3" to:  ~/.vst3/
+
+CLAP  (Bitwig, Reaper, ...)
+  Copy the file "Neuroforge.clap" to:    ~/.clap/
+
+  mkdir -p ~/.vst3 ~/.clap
+  cp -r Neuroforge.vst3 ~/.vst3/ && cp Neuroforge.clap ~/.clap/
+
+Then rescan plug-ins in your DAW. Neuroforge appears as an instrument.
+
+Standalone
+  Run ./Neuroforge from anywhere (choose your audio/MIDI device under Options).
+  If the executable bit was lost on extraction:  chmod +x Neuroforge
+
+Runtime libraries (most desktop distros already have them): ALSA (libasound2), FreeType (libfreetype6),
+Fontconfig, and X11 (libx11, libxext, libxrandr, libxinerama, libxcursor). On Debian/Ubuntu:
+
+  sudo apt install libasound2 libfreetype6 libfontconfig1 libx11-6 libxext6 libxrandr2 libxinerama1 libxcursor1
+
+User presets are stored in ~/.config/Neuroforge/Presets.
+
+Play basslines around F1-F2. Press FORGE for a new patch, MUTATE to vary it, UNDO to go back.
+Manual & tutorials: {repo}/blob/main/docs/MANUAL.md
+Bugs & feedback:    {repo}/issues
+
+The Linux build is made by CI and is untested on real Linux hosts (Bitwig, Reaper, Ardour). Testers
+and bug reports are very welcome.
+Licensed under the GNU AGPLv3 (see LICENSE.txt). Source: {repo}
+Third-party licenses are in the "third-party-licenses" folder.
+"""
+
 
 def add_path(z: zipfile.ZipFile, src: str, arc: str) -> None:
     """Add a file or directory tree, preserving unix permissions and symlinks."""
@@ -83,7 +118,7 @@ def add_path(z: zipfile.ZipFile, src: str, arc: str) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--platform", choices=["windows", "macos"], required=True)
+    ap.add_argument("--platform", choices=["windows", "macos", "linux"], required=True)
     ap.add_argument("--version", required=True)
     ap.add_argument("--artefacts", required=True, help="JUCE artefacts dir for the Release config")
     ap.add_argument("--out", default="dist")
@@ -91,7 +126,7 @@ def main() -> None:
     a = ap.parse_args()
 
     os.makedirs(a.out, exist_ok=True)
-    suffix = "win64" if a.platform == "windows" else "macos"
+    suffix = {"windows": "win64", "macos": "macos", "linux": "linux-x86_64"}[a.platform]
     out = os.path.join(a.out, f"Neuroforge-{a.version}-beta-{suffix}.zip")
     art = a.artefacts
 
@@ -99,6 +134,10 @@ def main() -> None:
         items = [("VST3/Neuroforge.vst3", "Neuroforge.vst3"), ("CLAP/Neuroforge.clap", "Neuroforge.clap"),
                  ("Standalone/Neuroforge.exe", "Neuroforge.exe")]
         install = WINDOWS_INSTALL.format(version=a.version, repo=REPO).replace("\n", "\r\n")
+    elif a.platform == "linux":
+        items = [("VST3/Neuroforge.vst3", "Neuroforge.vst3"), ("CLAP/Neuroforge.clap", "Neuroforge.clap"),
+                 ("Standalone/Neuroforge", "Neuroforge")]
+        install = LINUX_INSTALL.format(version=a.version, repo=REPO)
     else:
         items = [("VST3/Neuroforge.vst3", "Neuroforge.vst3"), ("AU/Neuroforge.component", "Neuroforge.component"),
                  ("CLAP/Neuroforge.clap", "Neuroforge.clap"), ("Standalone/Neuroforge.app", "Neuroforge.app")]
