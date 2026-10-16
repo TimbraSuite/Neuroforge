@@ -101,8 +101,6 @@ The **[Manual](docs/MANUAL.md)** covers:
 - every panel and effect
 - three step-by-step tutorials: a self-moving FM growl, a talking vowel bass, and two generations of resampling
 
-**Demo sounds:** bassline-only renders of the three tutorial results are in [`docs/audio/`](docs/audio/) (`tutorial-1`, `tutorial-2`, `tutorial-3`).
-
 ## Beta status
 
 This is a public beta. Here is what we know:

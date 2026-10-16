@@ -7,3 +7,6 @@ renders/
 .vs/
 __pycache__/
 dist/
+
+# tutorial demo renders (hidden for now; regenerate with tools/demos)
+docs/audio/

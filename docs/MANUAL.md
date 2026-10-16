@@ -300,8 +300,6 @@ Three recipes, each about ten minutes. Play a held F1 while you build, then a ba
 8. Pass 3: **OTT** (Depth 0.50) then **EQ** (Mid freq 350 Hz, Mid gain −3.0 dB).
 9. Output: Sub Level −6.0 dB. Try FM OP Ratio 2 or 0.5 for different growls.
 
-**Listen:** [tutorial-1.mp3](audio/tutorial-1.mp3)
-
 ### 2. Talking bass with a vowel sequence
 
 1. Pick **Talker** and press FORGE, or start from Init with OSC A on Saw>Square, Unison 1.
@@ -310,8 +308,6 @@ Three recipes, each about ten minutes. Play a held F1 while you build, then a ba
 4. Draw the bars: bottom = A, a quarter of the way up = E, halfway = I, three quarters = O, top = U. Try A, O, I, E, A, U, I, O.
 5. Drive *before* the formant gives hard, clear talking; swap the slots for a smoother, rounder voice.
 6. Turn **GROWL** for a sharper formant and **TALK** to push the vowel movement.
-
-**Listen:** [tutorial-2.mp3](audio/tutorial-2.mp3)
 
 ### 3. Two generations of resampling
 
@@ -322,8 +318,6 @@ Three recipes, each about ten minutes. Play a held F1 while you build, then a ba
 5. Pass 3: **OTT** (Depth 0.45) then **EQ**.
 6. Click **RESAMPLE** again for a third generation. Drag the **LFO 1** chip onto OSC A **Position** again so the new table moves, then give it a new movement, for example a Formant step sequence in Pass 2.
 7. Click **MUTATE** (subtle) a few times and **Save** the versions you like. That is your bass library for the track.
-
-**Listen:** [tutorial-3.mp3](audio/tutorial-3.mp3)
 
 ## Tips and troubleshooting
 
