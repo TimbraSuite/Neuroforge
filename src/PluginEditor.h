@@ -1,6 +1,7 @@
 #pragma once
 #include "PluginProcessor.h"
 #include "ui/Panels.h"
+#include "ui/AboutBox.h"
 
 class NeuroforgeEditor : public juce::AudioProcessorEditor,
                          public juce::DragAndDropContainer,
@@ -15,6 +16,8 @@ public:
 
 private:
     void timerCallback() override;
+    void openAbout();
+    void closeAbout();
 
     struct Content : juce::Component {
         void paint(juce::Graphics& g) override { g.fillAll(nfui::cBg); nfui::paintMetal(g, getLocalBounds().toFloat(), 0.f, 3, nfui::kMetalOpacity * 0.5f); }
@@ -24,6 +27,7 @@ private:
     nfui::LookAndFeel laf;
     Content content;
     std::unique_ptr<nfui::TopBar> top;
+    std::unique_ptr<nfui::AboutBox> about;
     std::unique_ptr<nfui::Page> source, forge, macros, mod, output;
     juce::TooltipWindow tooltip { this, 700 };
     juce::ComponentBoundsConstrainer constrainer;

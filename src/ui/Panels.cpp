@@ -1124,6 +1124,16 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     };
 }
 
+void TopBar::mouseDown(const juce::MouseEvent& e)
+{
+    if (logoRect().contains(e.getPosition()) && onLogoClick) onLogoClick();
+}
+
+juce::MouseCursor TopBar::getMouseCursor()
+{
+    return logoRect().contains(getMouseXYRelative()) ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor;
+}
+
 void TopBar::tick()
 {
     if (!isShowing()) return;
