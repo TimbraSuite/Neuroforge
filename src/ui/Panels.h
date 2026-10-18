@@ -74,7 +74,7 @@ public:
     PassColumn(NeuroforgeProcessor& p, int passIndex);
     void resized() override;
 private:
-    void updateActive();
+    void updateActive(bool isOn);
     NeuroforgeProcessor& proc;
     int idx;
     bool active = true;
