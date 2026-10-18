@@ -422,7 +422,7 @@ PassColumn::PassColumn(NeuroforgeProcessor& p, int i) : proc(p), idx(i)
         slots[s] = chain.make<SlotStrip>(p, i * 4 + s);
         slots[s]->onHeightChange = [this] { resized(); repaint(); };
     }
-    on->onToggled = [this](bool) { updateActive(); };
+    on->onToggled = [this](bool b) { updateActive(b); };
     painter = [this](juce::Graphics& g) {
         using namespace tok;
         auto r = getLocalBounds().toFloat();
@@ -445,12 +445,14 @@ PassColumn::PassColumn(NeuroforgeProcessor& p, int i) : proc(p), idx(i)
         g.setColour(edgeSoft);
         g.drawHorizontalLine(chainLabel.getCentreY(), (float) chainLabel.getX() + 48.f, (float) chainLabel.getRight());
     };
-    updateActive();
+    updateActive(on->getToggleState());
 }
 
-void PassColumn::updateActive()
+// The value comes from the parameter attachment callback (the new value); reading the processor's cached
+// raw value here would still return the previous one at that moment, so the dimming lagged one step.
+void PassColumn::updateActive(bool isOn)
 {
-    active = proc.getRaw(pid::pass(idx, pid::pOn)) >= 0.5f;
+    active = isOn;
     motion->setAlpha(active ? 1.f : 0.5f);
     chainView->setAlpha(active ? 1.f : 0.5f);
     repaint();
@@ -650,7 +652,7 @@ std::unique_ptr<Page> makeMatrixRow(NeuroforgeProcessor& p, int x)
 
 // A source card: the level-2 unit of the modulation editor (one envelope, one LFO, ...).
 static void paintSourceCard(juce::Graphics& g, juce::Rectangle<int> b, juce::Colour col, const juce::String& title,
-                            const juce::String& sub)
+                            const juce::String& sub, bool grip = false)
 {
     using namespace tok;
     auto r = b.toFloat();
@@ -658,13 +660,19 @@ static void paintSourceCard(juce::Graphics& g, juce::Rectangle<int> b, juce::Col
     g.fillRoundedRectangle(r, rCard);
     g.setColour(col);
     g.fillRoundedRectangle(r.getX() + 6.f, r.getY() + 6.f, 3.f, 12.f, 1.5f); // source colour marker
+    const int tx = grip ? 26 : 14; // draggable cards: grip dots sit between the marker and the title
+    if (grip) {
+        g.setColour(col.withAlpha(0.7f));
+        for (int i = 0; i < 3; ++i) for (int j = 0; j < 2; ++j)
+            g.fillEllipse(r.getX() + 14.f + (float) j * 4.f, r.getY() + 7.f + (float) i * 3.5f, 2.f, 2.f);
+    }
     g.setColour(col.brighter(0.15f));
     g.setFont(fModule());
-    g.drawText(title, (int) r.getX() + 14, (int) r.getY() + 2, 70, 20, juce::Justification::centredLeft);
+    g.drawText(title, (int) r.getX() + tx, (int) r.getY() + 2, 70, 20, juce::Justification::centredLeft);
     if (sub.isNotEmpty()) {
         g.setColour(textSecondary);
         g.setFont(fMeta());
-        g.drawText(sub, (int) r.getX() + 14 + (int) fModule().getStringWidthFloat(title) + 6, (int) r.getY() + 2, 60, 20,
+        g.drawText(sub, (int) r.getX() + tx + (int) fModule().getStringWidthFloat(title) + 6, (int) r.getY() + 2, 60, 20,
                    juce::Justification::centredLeft);
     }
 }
@@ -690,15 +698,18 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
             auto* loop = c->make<ParamToggle>(p, pid::env(e, pid::eLoop), "Loop");
             loop->setTooltip("Loop attack + decay while the note is held");
             auto* view = c->make<EnvView>(p, e);
+            auto* grab = c->make<ModChip>(p, (int) ModSrc::Env1 + e, juce::String(), true);
+            grab->setTooltip("Drag onto any knob to modulate it");
             std::vector<juce::Component*> ks;
             const char* ln[] = { "Attack", "Decay", "Sustain", "Release" };
             for (int k = 0; k < 4; ++k) ks.push_back(c->make<Knob>(p, pid::env(e, k), ln[k]));
             c->painter = [c, e](juce::Graphics& g) {
-                paintSourceCard(g, c->getLocalBounds(), tok::modEnv, "ENV " + juce::String(e + 1), e == 0 ? "AMP" : "");
+                paintSourceCard(g, c->getLocalBounds(), tok::modEnv, "ENV " + juce::String(e + 1), e == 0 ? "AMP" : "", true);
             };
             c->layout = [=](juce::Rectangle<int> r) {
                 r = r.reduced(6, 0).withTrimmedTop(4).withTrimmedBottom(kCardBottomPad);
                 auto h = r.removeFromTop(20);
+                grab->setBounds(h.getX() - 2, h.getY(), e == 0 ? 100 : 76, h.getHeight());
                 loop->setBounds(h.removeFromRight(64));
                 r.removeFromTop(3);
                 auto knobRow = r.removeFromBottom(kMacroKnobH); // same box as the macro knobs -> aligned
@@ -725,6 +736,8 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
             auto* div = c->make<ParamCombo>(p, pid::lfo(l, pid::lDiv));
             auto* rate = c->make<ParamBar>(p, pid::lfo(l, pid::lRate), "Rate");
             auto* phase = c->make<ParamBar>(p, pid::lfo(l, pid::lPhase), "Phase");
+            auto* grab = c->make<ModChip>(p, (int) ModSrc::Lfo1 + l, juce::String(), true);
+            grab->setTooltip("Drag onto any knob to modulate it");
             auto* view = c->make<TraceView>(p, [&p, l] { return p.getEngine().uiLfo[l].load(std::memory_order_relaxed); },
                                             tok::modLfo); // the shape is already shown by the combo above
             shape->setTooltip("LFO shape");
@@ -734,12 +747,13 @@ std::unique_ptr<Page> makeModPanel(NeuroforgeProcessor& p)
             sync->onToggled = [synced, c](bool b) { *synced = b; c->resized(); };
             *synced = sync->getToggleState();
             c->painter = [c, l](juce::Graphics& g) {
-                paintSourceCard(g, c->getLocalBounds(), tok::modLfo, "LFO " + juce::String(l + 1), {});
+                paintSourceCard(g, c->getLocalBounds(), tok::modLfo, "LFO " + juce::String(l + 1), {}, true);
             };
             c->layout = [=](juce::Rectangle<int> r) {
                 r = r.reduced(6, 0).withTrimmedTop(4).withTrimmedBottom(kCardBottomPad);
                 auto h = r.removeFromTop(20);
-                h.removeFromLeft(58);
+                grab->setBounds(h.getX() - 2, h.getY(), 76, h.getHeight());
+                h.removeFromLeft(76);
                 retrig->setBounds(h.removeFromRight(66));
                 sync->setBounds(h.removeFromRight(58));
                 r.removeFromTop(3);

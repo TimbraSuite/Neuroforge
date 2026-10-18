@@ -578,8 +578,14 @@ void Knob::itemDropped(const SourceDetails& d)
 {
     dropHighlight = false;
     const int src = d.description.toString().fromFirstOccurrenceOf("mod:", false, false).getIntValue();
-    proc.addRoute(src, pid, 0.5f);
+    if (!proc.addRoute(src, pid, 0.5f)) warnMatrixFull();
     repaint();
+}
+
+void Knob::warnMatrixFull()
+{
+    juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::InfoIcon, "Modulation matrix is full",
+                                           "All " + juce::String(pid::kNumMatrix) + " matrix rows are in use. Remove a modulation route first.");
 }
 
 void Knob::showMenu()
@@ -597,6 +603,24 @@ void Knob::showMenu()
         for (int i = 0; i < pid::kNumMacros; ++i)
             mac.addItem(200 + i, "Macro " + juce::String(i + 1) + " (" + modSrcShort((int) ModSrc::Macro1 + i) + ")");
         m.addSubMenu("Assign to Macro", mac);
+
+        // Modulate with >: every source, grouped; sources already routed here are ticked and disabled
+        auto routed = [&routes](int s) { for (auto& r : routes) if (r.src == s) return true; return false; };
+        auto addGroup = [&](juce::PopupMenu& sm, const char* title, int first, int last) {
+            sm.addSectionHeader(title);
+            for (int s = first; s <= last; ++s) {
+                const bool on = routed(s);
+                sm.addItem(300 + s, juce::String(modSrcNames()[(size_t) s]), !on, on);
+            }
+        };
+        juce::PopupMenu mod;
+        addGroup(mod, "Envelopes", (int) ModSrc::Env1, (int) ModSrc::Env3);
+        addGroup(mod, "LFOs", (int) ModSrc::Lfo1, (int) ModSrc::Lfo4);
+        addGroup(mod, "Motion", (int) ModSrc::Motion1, (int) ModSrc::Motion3);
+        addGroup(mod, "Steppers", (int) ModSrc::Step1, (int) ModSrc::Step2);
+        addGroup(mod, "Macros", (int) ModSrc::Macro1, (int) ModSrc::Macro8);
+        addGroup(mod, "Other", (int) ModSrc::Velocity, (int) ModSrc::Random);
+        m.addSubMenu("Modulate with", mod);
     }
     juce::Component::SafePointer<Knob> sp(this);
     m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this), [sp](int r) {
@@ -605,7 +629,8 @@ void Knob::showMenu()
         else if (r == 2) sp->enterValue();
         else if (r == 3) sp->showRoutesMenu();
         else if (r >= 100 && r < 200) sp->proc.removeRoute(r - 100);
-        else if (r >= 200 && r < 208) sp->proc.addRoute((int) ModSrc::Macro1 + (r - 200), sp->pid, 0.5f);
+        else if (r >= 200 && r < 208) { if (!sp->proc.addRoute((int) ModSrc::Macro1 + (r - 200), sp->pid, 0.5f)) warnMatrixFull(); }
+        else if (r >= 300 && r < 300 + (int) ModSrc::NumSources) { if (!sp->proc.addRoute(r - 300, sp->pid, 0.5f)) warnMatrixFull(); }
     });
 }
 
@@ -741,7 +766,8 @@ ParamBar::ParamBar(NeuroforgeProcessor& p, int paramId, const juce::String& lbl)
 }
 
 //==============================================================================================
-ModChip::ModChip(NeuroforgeProcessor& p, int s, juce::String t) : proc(p), src(s), text(t.isEmpty() ? juce::String(modSrcShort(s)) : t)
+ModChip::ModChip(NeuroforgeProcessor& p, int s, juce::String t, bool asHandle)
+    : proc(p), src(s), text(t.isEmpty() ? juce::String(modSrcShort(s)) : t), handle(asHandle)
 {
     setMouseCursor(juce::MouseCursor::DraggingHandCursor);
     setRepaintsOnMouseActivity(true);
@@ -753,6 +779,19 @@ void ModChip::paint(juce::Graphics& g)
     auto r = getLocalBounds().toFloat().reduced(0.5f);
     const auto col = modSrcColour(src);
     const bool over = isMouseOver();
+    if (handle) { // transparent drag handle laid over a card title: only lights up on hover, plus live activity
+        if (over) {
+            g.setColour(col.withAlpha(0.14f));
+            g.fillRoundedRectangle(r, 3.f);
+            g.setColour(col.withAlpha(0.7f));
+            g.drawRoundedRectangle(r, 3.f, 1.f);
+        }
+        if (level > 0.01f) {
+            g.setColour(col.withAlpha(0.6f));
+            g.fillRoundedRectangle(r.getX() + 2.f, r.getBottom() - 3.f, (r.getWidth() - 4.f) * juce::jlimit(0.f, 1.f, level), 2.f, 1.f);
+        }
+        return;
+    }
     g.setColour(col.withAlpha(over ? 0.22f : 0.12f));
     g.fillRoundedRectangle(r, 3.f);
     g.setColour(col.withAlpha(over ? 1.f : 0.6f));

@@ -56,6 +56,7 @@ public:
 
 private:
     void showMenu();
+    static void warnMatrixFull();
     void showBadgeMenu(int badge);
     enum class Size { Small, Medium, Large };   // same design at every size; proportions scale with the radius
     Size sizeClass() const;
@@ -134,7 +135,7 @@ private:
 //==============================================================================================
 class ModChip : public juce::Component, public juce::SettableTooltipClient, public Tickable {
 public:
-    ModChip(NeuroforgeProcessor& p, int src, juce::String text = {});
+    ModChip(NeuroforgeProcessor& p, int src, juce::String text = {}, bool asHandle = false);
     int getSource() const { return src; }
     void paint(juce::Graphics&) override;
     void mouseDrag(const juce::MouseEvent&) override;
@@ -145,6 +146,7 @@ private:
     NeuroforgeProcessor& proc;
     int src;
     juce::String text;
+    bool handle = false;
     float level = 0.f;
 };
 
