@@ -43,7 +43,7 @@ Knobs work the same everywhere:
 - **Double-click** resets to the default.
 - Hover or drag to see the exact value.
 - The green arc is the knob's own value. Each modulation route draws a thin **ring** outside it in its source colour (pink = envelope, cyan = LFO, purple = Motion, white = macro, amber = stepper). A solid ring means positive depth, a dashed ring negative depth. A small marker shows where the knob is set and a white dot shows the live, modulated value.
-- **Right-click** for: *Enter value…* (type an exact value, units optional), remove modulation, *Edit all modulation…*, reset, and *Assign to Macro*.
+- **Right-click** for: *Enter value…* (type an exact value, units optional), *Modulate with ▸*, remove modulation, *Edit all modulation…*, reset, and *Assign to Macro*. *Modulate with* lists every source (Envelopes, LFOs, Motion, Steppers, Macros, Other) and adds a route at +50%. Sources already routed to that knob are ticked and disabled.
 - **Keyboard:** click a knob, then use the arrow keys (Shift = fine), Delete to reset, Enter to type a value.
 - **Modulation badges:** modulation routes show as small coloured badges under the knob (E1 = Env 1, L2 = LFO 2, MO1 = Motion 1, M3 = Macro 3, S1 = Step 1, …). **Drag a badge up or down** to set the amount, **double-click** it to remove the route, **right-click** it to invert, set +50% or remove it.
 - **More routes than badges:** when a knob has more routes than fit, the last badge reads **+n**. Click it (or right-click the knob → *Edit all modulation…*) to open a popover listing every route on that knob, each with a depth bar (drag left/right, double-click for 0), **±** to invert and **×** to remove.
@@ -197,12 +197,15 @@ Each pass shows its effects as a chain of cards under **EFFECTS**, in processing
 
 ## Modulation
 
-Anything with a knob can move. The quickest way is to **drag a source chip onto a knob**. This creates a route at 50% in the first free matrix row.
+Anything with a knob can move. The quickest way is to **drag a source chip onto a knob**. This creates a route at +50% in the first free matrix row. If all 24 rows are in use, a *Modulation matrix is full* alert appears instead.
 
-- **Source chips** sit in three places:
+- **Source chips** sit in several places:
   - the **DRAG** strip next to the modulation tabs (ENV 1–3, LFO 1–4, MOT 1–3, STP 1–2, VEL, NOTE, MW, PB, AT, RND)
   - above each macro knob
   - as the MOTION chip in each pass header
+  - the **grip** (six dots) and title in the header of each ENV 1–3 and LFO 1–4 card, so you can drag a source straight from the card you are editing
+  - the **STP** chip on each stepper
+- **Right-click instead of dragging**: right-click a knob and choose *Modulate with ▸*, then pick a source. The route is added at +50%.
 - **Change the amount**: drag the route's badge under the knob, Alt-drag the knob, click **+n** for the full list, or edit the row in the MATRIX tab.
 - **Remove**: double-click the badge, right-click the knob and choose *Remove modulation from …*, or clear the row in MATRIX.
 

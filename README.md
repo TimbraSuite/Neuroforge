@@ -46,7 +46,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 - **Modulation:**
   - Looping envelopes, for Noisia-style self-moving FM.
   - 4 LFOs, 2 **curve steppers** (16 steps, a drawable curve shape and intensity per step), 24 matrix slots.
-  - Drag a source chip onto any knob to modulate it. Knobs you can drop on are highlighted while you drag, and hovering a chip shows everything it modulates.
+  - Drag a source chip onto any knob to modulate it, drag from the grip on an LFO or envelope card itself, or right-click a knob → *Modulate with*. Knobs you can drop on are highlighted while you drag, and hovering a chip shows everything it modulates.
   - Sources are colour-coded: pink envelopes, cyan LFOs, purple Motion, white macros, amber steppers.
   - Each route shows as a **modulation badge** under the knob (drag it to set the depth) and a ring on the knob. When a knob has more routes than badges, **+n** opens a popover that lists every route, with a depth bar, invert and remove.
 - 2x/4x internal oversampling with linear-phase decimation.
