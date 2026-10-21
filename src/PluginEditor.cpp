@@ -31,7 +31,7 @@ NeuroforgeEditor::NeuroforgeEditor(NeuroforgeProcessor& p) : AudioProcessorEdito
     constrainer.setSizeLimits(640, 400, 2560, 1600);
     setConstrainer(&constrainer);
     setResizable(true, true);
-    setSize(kW, kH);
+    setSize(proc.editorWidth.load(), proc.editorHeight.load());
     startTimerHz(30);
 }
 
@@ -46,6 +46,10 @@ void NeuroforgeEditor::paint(juce::Graphics& g) { g.fillAll(nfui::cBg); }
 
 void NeuroforgeEditor::resized()
 {
+    if (getWidth() >= 640 && getHeight() >= 400) {
+        proc.editorWidth.store(getWidth());
+        proc.editorHeight.store(getHeight());
+    }
     const float s = (float) getWidth() / (float) kW;
     content.setTransform(juce::AffineTransform::scale(s));
     content.setBounds(0, 0, kW, kH);

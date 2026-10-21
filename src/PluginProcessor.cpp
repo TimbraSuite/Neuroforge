@@ -499,6 +499,9 @@ void NeuroforgeProcessor::getStateInformation(juce::MemoryBlock& dest)
     nfTree.setProperty("capNote", captureSettings.note, nullptr);
     nfTree.setProperty("capBeats", captureSettings.beats, nullptr);
     nfTree.setProperty("capFrames", captureSettings.maxFrames, nullptr);
+    nfTree.setProperty("editorWidth", editorWidth.load(), nullptr);
+    nfTree.setProperty("editorHeight", editorHeight.load(), nullptr);
+    nfTree.setProperty("archetype", selectedArchetype.load(), nullptr);
     for (int i = 0; i < kNumCaptures; ++i) {
         auto bank = engine.getCapture(i);
         if (!bank) continue;
@@ -537,6 +540,10 @@ void NeuroforgeProcessor::setStateInformation(const void* data, int size)
 
     if (nfTree.isValid()) {
         presetName = nfTree.getProperty("preset", "Init").toString();
+        editorWidth.store(juce::jlimit(640, 2560, (int) nfTree.getProperty("editorWidth", 1280)));
+        editorHeight.store(juce::jlimit(400, 1600, (int) nfTree.getProperty("editorHeight", 800)));
+        selectedArchetype.store(juce::jlimit(0, (int) archetypeNames().size() - 1,
+                                             (int) nfTree.getProperty("archetype", 0)));
         captureSettings.note = nfTree.getProperty("capNote", captureSettings.note);
         captureSettings.beats = nfTree.getProperty("capBeats", captureSettings.beats);
         captureSettings.maxFrames = nfTree.getProperty("capFrames", captureSettings.maxFrames);

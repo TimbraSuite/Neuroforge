@@ -6,6 +6,38 @@ using namespace nf;
 
 namespace nfui {
 
+namespace {
+bool isNewerRelease(const juce::String& tag)
+{
+    if (!tag.startsWithChar('v')) return false;
+    const auto version = tag.substring(1);
+    const auto parts = juce::StringArray::fromTokens(version.upToFirstOccurrenceOf("-", false, false), ".", "");
+    if (parts.size() != 3) return false;
+    const auto current = juce::StringArray::fromTokens(juce::String(JucePlugin_VersionString), ".", "");
+    if (current.size() != 3) return false;
+    for (int i = 0; i < 3; ++i) {
+        if (parts[i].isEmpty() || !parts[i].containsOnly("0123456789")) return false;
+        if (parts[i].getIntValue() != current[i].getIntValue())
+            return parts[i].getIntValue() > current[i].getIntValue();
+    }
+    // Published builds of the current version are beta; a stable release is newer.
+    if (!version.containsChar('-')) return true;
+    const auto suffix = version.fromFirstOccurrenceOf("-", false, false);
+    return suffix.startsWith("beta.") && suffix.fromFirstOccurrenceOf(".", false, false).getIntValue() > 0;
+}
+
+juce::String downloadSuffix()
+{
+#if JUCE_WINDOWS
+    return "-win64.zip";
+#elif JUCE_MAC
+    return "-macos.zip";
+#else
+    return "-linux-x86_64.zip";
+#endif
+}
+}
+
 // Shared bottom-row geometry so the macro knobs and the modulation-editor knobs line up across panels.
 static constexpr int kPanelInnerBottom = 6;  // gap between a bottom panel's content and its edge
 static constexpr int kMacroKnobH = 67;       // knob box (circle + badge row + label) used by macros and envelopes
@@ -1050,6 +1082,11 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     saveBtn = make<juce::TextButton>("Save");
     initBtn = make<juce::TextButton>("INIT");
     archetype = make<juce::ComboBox>();
+    updateBtn = make<juce::TextButton>("DOWNLOAD UPDATE");
+    updateBtn->setVisible(false);
+    updateBtn->setColour(juce::TextButton::buttonColourId, cAccent);
+    updateBtn->setColour(juce::TextButton::textColourOffId, juce::Colours::black);
+    updateBtn->onClick = [this] { juce::URL(availableDownloadUrl).launchInDefaultBrowser(); };
     forge = make<juce::TextButton>("FORGE");
     mutate = make<juce::TextButton>("MUTATE");
     undo = make<juce::TextButton>("UNDO");
@@ -1064,8 +1101,43 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
 
     int i = 1;
     for (auto& n : archetypeNames()) archetype->addItem(juce::String(n), i++);
-    archetype->setSelectedId(1, juce::dontSendNotification);
+    archetype->setSelectedId(proc.selectedArchetype.load() + 1, juce::dontSendNotification);
+    archetype->onChange = [this] { proc.selectedArchetype.store(archetype->getSelectedId() - 1); };
     archetype->setTooltip("Archetype used by FORGE");
+
+    updateCheckThread = std::thread([this] {
+        const auto options = juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inAddress)
+            .withConnectionTimeoutMs(2500)
+            .withExtraHeaders("Accept: application/vnd.github+json\r\nUser-Agent: Neuroforge\r\n");
+        if (auto stream = juce::URL("https://api.github.com/repos/TimbraSuite/neuroforge/releases?per_page=1")
+                              .createInputStream(options)) {
+            juce::MemoryBlock response;
+            stream->readIntoMemoryBlock(response, 256 * 1024);
+            if (response.isEmpty()) return;
+            const auto releases = juce::JSON::parse(juce::String::fromUTF8(
+                static_cast<const char*>(response.getData()), (int) response.getSize()));
+            if (auto* list = releases.getArray(); list != nullptr && !list->isEmpty()) {
+                const auto& release = list->getReference(0);
+                const auto tag = release.getProperty("tag_name", {}).toString();
+                if (!static_cast<bool>(release.getProperty("draft", false)) && isNewerRelease(tag)) {
+                    const auto assetsValue = release.getProperty("assets", {});
+                    if (auto* assets = assetsValue.getArray()) {
+                        for (const auto& asset : *assets) {
+                            const auto name = asset.getProperty("name", {}).toString();
+                            const auto url = asset.getProperty("browser_download_url", {}).toString();
+                            if (name.startsWithIgnoreCase("Neuroforge-") && name.endsWithIgnoreCase(downloadSuffix()) &&
+                                url.startsWithIgnoreCase("https://github.com/TimbraSuite/neuroforge/releases/download/")) {
+                                availableVersion = tag;
+                                availableDownloadUrl = url;
+                                updateAvailable.store(true, std::memory_order_release);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
 
     forge->setColour(juce::TextButton::buttonColourId, cAccent);
     forge->setColour(juce::TextButton::textColourOffId, juce::Colours::black);
@@ -1111,7 +1183,13 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
     painter = [this](juce::Graphics& g) {
         paintPanel(g, getLocalBounds());
         if (logoImage().isValid())
-            g.drawImageWithin(logoImage(), 12, 2, 158, getHeight() - 4, juce::RectanglePlacement::centred);
+            g.drawImageWithin(logoImage(), 12, 1, 158, 31, juce::RectanglePlacement::centred);
+        if (!updateBtn->isVisible()) {
+            g.setColour(cDim);
+            g.setFont(font(9.f));
+            g.drawText("v" + juce::String(JucePlugin_VersionString) + "-beta", 18, 31, 146, 12,
+                       juce::Justification::centred);
+        }
         g.setColour(tok::edgeSoft.brighter(0.2f)); // group separators
         for (int x : { 488, 1018 }) g.drawVerticalLine(x, 8.f, (float) getHeight() - 8.f);
     };
@@ -1124,6 +1202,7 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
         saveBtn->setBounds(380, y1, 46, h1);
         initBtn->setBounds(430, y1, 46, h1);
         archetype->setBounds(500, y1, 98, h1);
+        updateBtn->setBounds(18, 30, 146, 14);
         forge->setBounds(604, 6, 76, 34);
         mutate->setBounds(692, y1, 70, h1);
         mutAmt->setBounds(692, 30, 120, 12);
@@ -1136,6 +1215,11 @@ TopBar::TopBar(NeuroforgeProcessor& p) : proc(p)
         master->setBounds(1152, 1, 40, 44);
         meter->setBounds(1198, 8, 60, 30);
     };
+}
+
+TopBar::~TopBar()
+{
+    if (updateCheckThread.joinable()) updateCheckThread.join();
 }
 
 void TopBar::mouseDown(const juce::MouseEvent& e)
@@ -1151,6 +1235,15 @@ juce::MouseCursor TopBar::getMouseCursor()
 void TopBar::tick()
 {
     if (!isShowing()) return;
+    if (updateAvailable.load(std::memory_order_acquire) && !updateBtn->isVisible()) {
+        updateBtn->setButtonText("DOWNLOAD " + availableVersion);
+        updateBtn->setTooltip("Download Neuroforge " + availableVersion + " from GitHub");
+        updateBtn->setVisible(true);
+        repaint(logoRect().withHeight(46));
+    }
+    const int selectedId = proc.selectedArchetype.load() + 1;
+    if (archetype->getSelectedId() != selectedId)
+        archetype->setSelectedId(selectedId, juce::dontSendNotification);
     if (proc.presetName != lastName) { lastName = proc.presetName; presetBtn->setButtonText(lastName); }
     const bool busy = proc.isCapturing();
     const auto st = proc.getCaptureStatus();

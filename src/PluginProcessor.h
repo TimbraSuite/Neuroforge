@@ -92,6 +92,8 @@ public:
     static int dstIndexOf(int paramId);
 
     // ---- UI data ----
+    // Per-instance editor choices; saved in the DAW state, never used by the audio engine.
+    std::atomic<int> editorWidth { 1280 }, editorHeight { 800 }, selectedArchetype { 0 };
     nf::Engine& getEngine() { return engine; }
     void copyScope(float* dst, int count) const;   // last `count` output samples (mono)
     std::atomic<float> peakL { 0.f }, peakR { 0.f };

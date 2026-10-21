@@ -1,6 +1,8 @@
 #pragma once
 #include "Controls.h"
 #include "Displays.h"
+#include <atomic>
+#include <thread>
 
 namespace nfui {
 
@@ -97,18 +99,19 @@ std::unique_ptr<Page> makeOutputPanel(NeuroforgeProcessor&);
 class TopBar : public Page, public Tickable {
 public:
     explicit TopBar(NeuroforgeProcessor& p);
+    ~TopBar() override;
     void tick() override;
     std::function<void()> onLogoClick; // About box
     void mouseDown(const juce::MouseEvent&) override;
     juce::MouseCursor getMouseCursor() override;
 private:
-    static juce::Rectangle<int> logoRect() { return { 12, 0, 158, 46 }; }
+    static juce::Rectangle<int> logoRect() { return { 12, 0, 158, 30 }; }
     void showPresetMenu();
     void step(int dir);
     void showSaveDialog();
     void showCaptureSettings();
     NeuroforgeProcessor& proc;
-    juce::TextButton *prev = nullptr, *next = nullptr, *presetBtn = nullptr, *saveBtn = nullptr, *initBtn = nullptr, *forge = nullptr,
+    juce::TextButton *prev = nullptr, *next = nullptr, *presetBtn = nullptr, *saveBtn = nullptr, *initBtn = nullptr, *forge = nullptr, *updateBtn = nullptr,
                      *mutate = nullptr, *undo = nullptr, *capture = nullptr, *nextGen = nullptr, *capSet = nullptr;
     juce::ComboBox* archetype = nullptr;
     Bar* mutAmt = nullptr;
@@ -117,6 +120,9 @@ private:
     juce::String lastName, lastStatus;
     bool lastBusy = false, lastCanUndo = true;
     float mutateAmount = 0.4f;
+    std::thread updateCheckThread;
+    std::atomic<bool> updateAvailable { false };
+    juce::String availableVersion, availableDownloadUrl;
 };
 
 } // namespace nfui
