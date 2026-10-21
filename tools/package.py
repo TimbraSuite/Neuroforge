@@ -1,6 +1,6 @@
 """Package a Neuroforge build into a release zip.
 
-  python tools/package.py --platform windows|macos|linux --version 0.3.1 --artefacts build/Neuroforge_artefacts/Release --out dist
+  python tools/package.py --platform windows|macos|linux --version 0.3.2 --artefacts build/Neuroforge_artefacts/Release --out dist
 
 Unix file modes are preserved in the zip, so macOS bundles keep their executable bits.
 """

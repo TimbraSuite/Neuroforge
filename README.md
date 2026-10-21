@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/TimbraSuite/neuroforge/releases/tag/v0.3.1-beta"><b>⬇ Download v0.3.1-beta</b></a> ·
+  <a href="https://github.com/TimbraSuite/Neuroforge/releases/tag/v0.3.2-beta"><b>⬇ Download v0.3.2-beta</b></a> ·
   <a href="docs/MANUAL.md"><b>📖 Manual & tutorials</b></a> ·
   <a href="https://github.com/TimbraSuite/neuroforge/issues">Report a bug</a>
 </p>
@@ -56,7 +56,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 ### Windows
 
-1. Download `Neuroforge-0.3.1-beta-win64.zip` from the [release page](https://github.com/TimbraSuite/neuroforge/releases/tag/v0.3.1-beta).
+1. Download `Neuroforge-0.3.2-beta-win64.zip` from the [release page](https://github.com/TimbraSuite/Neuroforge/releases/tag/v0.3.2-beta).
 2. Install the format your DAW uses:
    - **VST3** (Ableton Live, Cubase, FL Studio, Studio One, Reaper, …): copy the **`Neuroforge.vst3`** folder to `C:\Program Files\Common Files\VST3\`.
    - **CLAP** (Bitwig, Reaper, FL Studio, Studio One, …): copy **`Neuroforge.clap`** to `C:\Program Files\Common Files\CLAP\`.
@@ -66,7 +66,7 @@ It does not dumb the process down. It lowers the entry point and raises the ceil
 
 ### Linux (x86_64)
 
-1. Download `Neuroforge-0.3.1-beta-linux-x86_64.zip` from the [release page](https://github.com/TimbraSuite/neuroforge/releases/tag/v0.3.1-beta) and unzip it.
+1. Download `Neuroforge-0.3.2-beta-linux-x86_64.zip` from the [release page](https://github.com/TimbraSuite/Neuroforge/releases/tag/v0.3.2-beta) and unzip it.
 2. Install the format your DAW uses:
    - **VST3** (Bitwig, Reaper, Ardour, …): copy the **`Neuroforge.vst3`** folder to `~/.vst3/`.
    - **CLAP** (Bitwig, Reaper, …): copy **`Neuroforge.clap`** to `~/.clap/`.
@@ -82,7 +82,7 @@ cp -r Neuroforge.vst3 ~/.vst3/ && cp Neuroforge.clap ~/.clap/
 
 It needs ALSA, FreeType, Fontconfig and X11 at runtime, which most desktop distributions already have. On Debian/Ubuntu: `sudo apt install libasound2 libfreetype6 libfontconfig1 libx11-6 libxext6 libxrandr2 libxinerama1 libxcursor1`. User presets are stored in `~/.config/Neuroforge/Presets`.
 
-This is the first Linux release and it is untested by hand; see the beta notes below.
+Linux beta builds pass the automated checks, but have not yet been tested by hand; see the beta notes below.
 
 ### macOS (10.15 or newer, Apple Silicon and Intel)
 
@@ -94,7 +94,7 @@ curl -fsSL https://raw.githubusercontent.com/TimbraSuite/neuroforge/main/install
 
 Then restart your DAW. Logic Pro and GarageBand use the AU; Ableton, Bitwig, Reaper and others use the VST3 or CLAP. The script is short and [readable](install-mac.sh).
 
-**Manual install:** download `Neuroforge-0.3.1-beta-macos.zip` and copy:
+**Manual install:** download `Neuroforge-0.3.2-beta-macos.zip` and copy:
 
 | File | Folder | DAWs |
 | --- | --- | --- |
